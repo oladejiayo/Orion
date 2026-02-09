@@ -81,9 +81,9 @@ Orion uses:
 ### Diagram
 ```mermaid
 flowchart LR
-  UI[Web Workstation] <--REST/WS--> BFF[BFF: Workstation API]
-  UI2[Admin Console] <--REST--> BFF_ADMIN[BFF: Admin API]
-  BFF --> AUTH[OIDC Auth (Cognito or Keycloak)]
+  UI[Web Workstation] <-->|REST/WS| BFF[BFF: Workstation API]
+  UI2[Admin Console] <-->|REST| BFF_ADMIN[BFF: Admin API]
+  BFF --> AUTH[OIDC Auth - Cognito or Keycloak]
 
   MDING[MarketData Ingest] --> BUS[(Kafka/MSK)]
   RFQ[RFQ Service] <--> BUS
