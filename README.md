@@ -80,26 +80,63 @@ Orion uses:
 
 ### Diagram
 ```mermaid
-flowchart LR
-  UI[Web Workstation] <-->|REST/WS| BFF[BFF: Workstation API]
-  UI2[Admin Console] <-->|REST| BFF_ADMIN[BFF: Admin API]
-  BFF --> AUTH[OIDC Auth - Cognito or Keycloak]
+flowchart TB
+  subgraph clients[" 🖥️ Client Layer"]
+    UI["📊 Web Workstation"]
+    UI2["⚙️ Admin Console"]
+  end
 
-  MDING[MarketData Ingest] --> BUS[(Kafka/MSK)]
-  RFQ[RFQ Service] <--> BUS
-  EXEC[Execution Service] <--> BUS
-  POST[PostTrade Service] <--> BUS
-  ANA[Analytics Service] <--> BUS
+  subgraph bff[" 🔌 BFF Layer"]
+    BFF["Workstation API"]
+    BFF_ADMIN["Admin API"]
+  end
 
-  PSQL[(RDS Postgres)]
-  REDIS[(Redis)]
-  S3[(S3)]
-  RFQ --> PSQL
-  EXEC --> PSQL
-  POST --> PSQL
-  ANA --> PSQL
+  subgraph auth[" 🔐 Auth"]
+    AUTH["OIDC\nCognito / Keycloak"]
+  end
+
+  subgraph services[" ⚡ Domain Services"]
+    MDING["📈 MarketData Ingest"]
+    RFQ["💬 RFQ Service"]
+    EXEC["✅ Execution Service"]
+    POST["📋 PostTrade Service"]
+    ANA["📊 Analytics Service"]
+  end
+
+  subgraph messaging[" 📨 Event Bus"]
+    BUS[("Kafka / MSK")]
+  end
+
+  subgraph data[" 💾 Data Stores"]
+    PSQL[("PostgreSQL")]
+    REDIS[("Redis")]
+    S3[("S3")]
+  end
+
+  UI <-->|REST/WS| BFF
+  UI2 <-->|REST| BFF_ADMIN
+  BFF & BFF_ADMIN --> AUTH
+
+  MDING --> BUS
+  RFQ & EXEC & POST & ANA <--> BUS
+
+  RFQ & EXEC & POST & ANA --> PSQL
   BFF --> REDIS
   ANA --> S3
+
+  classDef clientStyle fill:#e1f5fe,stroke:#01579b,stroke-width:2px,color:#01579b
+  classDef bffStyle fill:#fff3e0,stroke:#e65100,stroke-width:2px,color:#e65100
+  classDef authStyle fill:#fce4ec,stroke:#880e4f,stroke-width:2px,color:#880e4f
+  classDef serviceStyle fill:#e8f5e9,stroke:#1b5e20,stroke-width:2px,color:#1b5e20
+  classDef busStyle fill:#f3e5f5,stroke:#4a148c,stroke-width:2px,color:#4a148c
+  classDef dataStyle fill:#fff8e1,stroke:#ff6f00,stroke-width:2px,color:#ff6f00
+
+  class UI,UI2 clientStyle
+  class BFF,BFF_ADMIN bffStyle
+  class AUTH authStyle
+  class MDING,RFQ,EXEC,POST,ANA serviceStyle
+  class BUS busStyle
+  class PSQL,REDIS,S3 dataStyle
 ```
 
 ---

@@ -177,38 +177,84 @@ In addition to roles, a user has entitlements:
 
 ### 7.3 Component Diagram (Mermaid)
 ```mermaid
-flowchart LR
-  UI[Web Workstation] <-->|REST/WS| BFF[BFF: Workstation API]
-  UI2[Admin Console] <-->|REST| BFF_ADMIN[BFF: Admin API]
-  UI3[Analytics UI] <-->|REST| BFF_ANALYTICS[BFF: Analytics API]
+flowchart TB
+  subgraph clients[" 🖥️ Client Applications"]
+    UI["📊 Web Workstation"]
+    UI2["⚙️ Admin Console"]
+    UI3["📈 Analytics UI"]
+  end
 
-  BFF --> AUTH[Auth/OIDC - Cognito or Keycloak]
-  BFF --> MDQ[Market Data Query Service]
-  BFF --> RFQ_API[RFQ Service]
-  BFF --> OMS_API[OMS Service]
-  BFF --> TRD_Q[Trade Query Service]
-  BFF --> NOTIF[Notifications Service]
+  subgraph bff[" 🔌 Backend-for-Frontend Layer"]
+    BFF["Workstation API"]
+    BFF_ADMIN["Admin API"]
+    BFF_ANALYTICS["Analytics API"]
+  end
 
-  MDING[MarketData Ingest] --> BUS[(Kafka/MSK Topics)]
-  RFQ_API <--> BUS
-  OMS_API <--> BUS
-  EXEC[Execution Service] <--> BUS
-  POST[Post-Trade Service Confirm / Settle] <--> BUS
-  ANA[Analytics / Indices Stream Processing] <--> BUS
+  subgraph auth[" 🔐 Identity"]
+    AUTH["OIDC Auth\nCognito / Keycloak"]
+  end
 
-  PSQL[(RDS Postgres)]
-  REDIS[(Redis / ElastiCache)]
-  S3[(S3 Archive / Exports)]
-  OS[(Optional OpenSearch)]
+  subgraph query[" 📖 Query Services"]
+    MDQ["Market Data Query"]
+    TRD_Q["Trade Query"]
+    NOTIF["Notifications"]
+  end
 
-  RFQ_API --> PSQL
-  OMS_API --> PSQL
-  EXEC --> PSQL
-  POST --> PSQL
+  subgraph command[" ✏️ Command Services"]
+    RFQ_API["RFQ Service"]
+    OMS_API["OMS Service"]
+  end
+
+  subgraph processing[" ⚡ Processing Services"]
+    MDING["MarketData Ingest"]
+    EXEC["Execution Service"]
+    POST["Post-Trade Service"]
+    ANA["Analytics Engine"]
+  end
+
+  subgraph messaging[" 📨 Event Bus"]
+    BUS[("Kafka / MSK")]
+  end
+
+  subgraph data[" 💾 Data Stores"]
+    PSQL[("PostgreSQL")]
+    REDIS[("Redis")]
+    S3[("S3")]
+    OS[("OpenSearch")]
+  end
+
+  UI <-->|REST/WS| BFF
+  UI2 <-->|REST| BFF_ADMIN
+  UI3 <-->|REST| BFF_ANALYTICS
+
+  BFF & BFF_ADMIN & BFF_ANALYTICS --> AUTH
+  BFF --> MDQ & RFQ_API & OMS_API & TRD_Q & NOTIF
+
+  MDING --> BUS
+  RFQ_API & OMS_API & EXEC & POST & ANA <--> BUS
+
+  RFQ_API & OMS_API & EXEC & POST & ANA --> PSQL
   MDQ --> REDIS
   TRD_Q --> OS
-  ANA --> PSQL
   ANA --> S3
+
+  classDef clientStyle fill:#e1f5fe,stroke:#01579b,stroke-width:2px,color:#01579b
+  classDef bffStyle fill:#fff3e0,stroke:#e65100,stroke-width:2px,color:#e65100
+  classDef authStyle fill:#fce4ec,stroke:#880e4f,stroke-width:2px,color:#880e4f
+  classDef queryStyle fill:#e0f2f1,stroke:#004d40,stroke-width:2px,color:#004d40
+  classDef commandStyle fill:#fff9c4,stroke:#f57f17,stroke-width:2px,color:#f57f17
+  classDef processingStyle fill:#e8f5e9,stroke:#1b5e20,stroke-width:2px,color:#1b5e20
+  classDef busStyle fill:#f3e5f5,stroke:#4a148c,stroke-width:2px,color:#4a148c
+  classDef dataStyle fill:#eceff1,stroke:#37474f,stroke-width:2px,color:#37474f
+
+  class UI,UI2,UI3 clientStyle
+  class BFF,BFF_ADMIN,BFF_ANALYTICS bffStyle
+  class AUTH authStyle
+  class MDQ,TRD_Q,NOTIF queryStyle
+  class RFQ_API,OMS_API commandStyle
+  class MDING,EXEC,POST,ANA processingStyle
+  class BUS busStyle
+  class PSQL,REDIS,S3,OS dataStyle
 ```
 
 ### 7.4 Why BFF Exists (Explicit Requirements)
@@ -866,38 +912,54 @@ Internal services are not directly called by UI. Only BFF calls internal service
 ### 13.1.1 AWS Deployment Diagram (Mermaid)
 
 ```mermaid
-flowchart LR
-  subgraph VPC[VPC (multi-AZ)]
-    subgraph PublicSubnets[Public Subnets]
-      ALB[ALB\nHTTPS Ingress]
+flowchart TB
+  User["🌐 Browser Clients"]:::userStyle
+
+  subgraph AWS[" ☁️ AWS Cloud"]
+    subgraph VPC[" 🔒 VPC - Multi-AZ"]
+      subgraph public[" 🌍 Public Subnets"]
+        ALB["⚖️ Application\nLoad Balancer"]
+      end
+
+      subgraph private[" 🔐 Private Subnets"]
+        subgraph compute[" 🖥️ Compute"]
+          ECS_BFF["📦 ECS Fargate\nBFF Services"]
+          ECS_SVCS["📦 ECS Fargate\nDomain Services"]
+        end
+
+        subgraph datastores[" 💾 Data Stores"]
+          MSK[("📨 MSK\nKafka")]
+          RDS[("🐘 RDS\nPostgres")]
+          REDIS[("⚡ ElastiCache\nRedis")]
+          OS[("🔍 OpenSearch")]
+        end
+      end
     end
 
-    subgraph PrivateSubnets[Private Subnets]
-      ECS_BFF[ECS Fargate\nBFF Services]
-      ECS_SVCS[ECS Fargate\nDomain Services]
-      MSK[(MSK Cluster\nKafka)]
-      RDS[(RDS Postgres)]
-      REDIS[(ElastiCache Redis)]
-      OS[(Optional OpenSearch)]
+    subgraph external[" 🔗 AWS Services"]
+      S3[("📁 S3\nBuckets")]
+      CW[("📊 CloudWatch")]
     end
   end
 
-  User[Browser Clients] -->|HTTPS| ALB
+  User -->|HTTPS| ALB
   ALB --> ECS_BFF
   ECS_BFF --> ECS_SVCS
-  ECS_SVCS --> MSK
-  ECS_SVCS --> RDS
-  ECS_SVCS --> REDIS
-  ECS_SVCS --> OS
-
-  S3[(S3 Buckets)]:::ext
-  CW[(CloudWatch)]:::ext
-
-  ECS_SVCS --> S3
-  ECS_SVCS --> CW
+  ECS_SVCS --> MSK & RDS & REDIS & OS
+  ECS_SVCS --> S3 & CW
   MSK --> CW
 
-  classDef ext fill:#ffffff,stroke:#999,stroke-dasharray:3,3
+  classDef userStyle fill:#e3f2fd,stroke:#1565c0,stroke-width:2px,color:#1565c0
+  classDef lbStyle fill:#fff3e0,stroke:#e65100,stroke-width:2px,color:#e65100
+  classDef computeStyle fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px,color:#2e7d32
+  classDef dataStyle fill:#fce4ec,stroke:#c2185b,stroke-width:2px,color:#c2185b
+  classDef extStyle fill:#f5f5f5,stroke:#616161,stroke-width:2px,stroke-dasharray:5,5,color:#616161
+
+  class User userStyle
+  class ALB lbStyle
+  class ECS_BFF,ECS_SVCS computeStyle
+  class MSK,RDS,REDIS,OS dataStyle
+  class S3,CW extStyle
 ```
 
 ### 13.2 Network & Security Groups
@@ -949,49 +1011,103 @@ Terraform modules:
 
 ```mermaid
 sequenceDiagram
-  participant ING as MarketDataIngest
-  participant K as Kafka/MSK
-  participant PROJ as MarketSnapshotProjector
-  participant R as Redis
-  participant BFF as Workstation BFF
-  participant UI as Web UI
+  autonumber
+  box rgb(225, 245, 254) Client
+    participant UI as 🖥️ Web UI
+  end
+  box rgb(255, 243, 224) BFF Layer
+    participant BFF as 🔌 Workstation BFF
+  end
+  box rgb(243, 229, 245) Messaging
+    participant K as 📨 Kafka/MSK
+  end
+  box rgb(232, 245, 233) Services
+    participant ING as 📈 MarketData Ingest
+    participant PROJ as 📊 Snapshot Projector
+  end
+  box rgb(255, 248, 225) Data
+    participant R as ⚡ Redis
+  end
 
   ING->>K: publish MarketTickReceived
+  activate K
   PROJ->>K: consume MarketTickReceived
+  deactivate K
   PROJ->>R: update latest snapshot
+  activate R
+  deactivate R
+
   UI->>BFF: WS SUBSCRIBE(instrumentId)
+  activate BFF
   BFF->>R: read snapshot
-  BFF->>UI: send snapshot
-  BFF->>K: consume MarketTickReceived (stream)
-  BFF->>UI: send incremental updates (coalesced)
+  activate R
+  R-->>BFF: snapshot data
+  deactivate R
+  BFF-->>UI: send snapshot
+
+  loop Streaming Updates
+    BFF->>K: consume MarketTickReceived
+    BFF-->>UI: send incremental updates
+  end
+  deactivate BFF
 ```
 
 ### 14.2 RFQ to Trade Flow
 
 ```mermaid
 sequenceDiagram
-  participant UI as Web UI
-  participant BFF as Workstation BFF
-  participant RFQ as RFQ Service
-  participant K as Kafka/MSK
-  participant LP as LP Bot Service
-  participant EX as Execution Service
-  participant PT as PostTrade Service
+  autonumber
+  box rgb(225, 245, 254) Client
+    participant UI as 🖥️ Web UI
+  end
+  box rgb(255, 243, 224) BFF Layer
+    participant BFF as 🔌 Workstation BFF
+  end
+  box rgb(232, 245, 233) Domain Services
+    participant RFQ as 💬 RFQ Service
+    participant LP as 🏦 LP Bot Service
+    participant EX as ✅ Execution Service
+    participant PT as 📋 PostTrade Service
+  end
+  box rgb(243, 229, 245) Messaging
+    participant K as 📨 Kafka/MSK
+  end
 
-  UI->>BFF: POST /rfqs
-  BFF->>RFQ: CreateRFQ(command)
-  RFQ->>RFQ: write rfq + outbox
-  RFQ->>K: publish RFQCreated
-  LP->>K: consume RFQCreated
-  LP->>K: publish QuoteReceived
-  RFQ->>K: consume QuoteReceived (aggregate)
-  UI->>BFF: POST /rfqs/{id}/accept
-  BFF->>RFQ: AcceptQuote(command)
-  RFQ->>K: publish QuoteAccepted
-  EX->>K: consume QuoteAccepted
-  EX->>K: publish TradeExecuted
-  PT->>K: consume TradeExecuted
-  PT->>K: publish TradeConfirmed + SettlementRequested
+  rect rgb(240, 248, 255)
+    Note over UI,K: Phase 1: RFQ Creation
+    UI->>+BFF: POST /rfqs
+    BFF->>+RFQ: CreateRFQ(command)
+    RFQ->>RFQ: write rfq + outbox
+    RFQ->>K: publish RFQCreated
+    RFQ-->>-BFF: RFQ created
+    BFF-->>-UI: 201 Created
+  end
+
+  rect rgb(240, 255, 240)
+    Note over LP,K: Phase 2: Quote Collection
+    LP->>K: consume RFQCreated
+    LP->>K: publish QuoteReceived
+    RFQ->>K: consume QuoteReceived
+    RFQ->>RFQ: aggregate quotes
+  end
+
+  rect rgb(255, 248, 240)
+    Note over UI,K: Phase 3: Quote Acceptance
+    UI->>+BFF: POST /rfqs/{id}/accept
+    BFF->>+RFQ: AcceptQuote(command)
+    RFQ->>K: publish QuoteAccepted
+    RFQ-->>-BFF: accepted
+    BFF-->>-UI: 200 OK
+  end
+
+  rect rgb(248, 240, 255)
+    Note over EX,PT: Phase 4: Execution & Post-Trade
+    EX->>K: consume QuoteAccepted
+    EX->>K: publish TradeExecuted
+    PT->>K: consume TradeExecuted
+    PT->>K: publish TradeConfirmed
+    PT->>K: publish SettlementRequested
+  end
 ```
 
 ---
