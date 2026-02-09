@@ -897,7 +897,7 @@ flowchart LR
   ECS_SVCS --> CW
   MSK --> CW
 
-  classDef ext fill:#ffffff,stroke:#999,stroke-dasharray: 3 3;
+  classDef ext fill:#ffffff,stroke:#999,stroke-dasharray:3,3
 ```
 
 ### 13.2 Network & Security Groups
