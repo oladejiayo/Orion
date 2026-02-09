@@ -163,6 +163,7 @@ In addition to roles, a user has entitlements:
 ### 7.1 High-Level Architecture (Context)
 - Web workstation (browser)
 - BFF (Backend-for-Frontend) as the UI gateway and contract
+- **gRPC** for internal service-to-service communication
 - Domain microservices (RFQ, OMS, Execution, Market Data, Post-Trade, Analytics, Admin)
 - Kafka message bus (AWS MSK)
 - Datastores (RDS Postgres, Redis, S3; optional OpenSearch)
@@ -170,10 +171,23 @@ In addition to roles, a user has entitlements:
 
 ### 7.2 Key Architectural Patterns
 - **BFF pattern**: UI calls only the BFF (REST/GraphQL + WebSockets).
+- **gRPC for internals**: BFF → services and service → service calls use gRPC for performance and type safety.
 - **CQRS**: Write services emit events; read models are projections for UI queries.
 - **Outbox**: Ensure atomic DB update + event publishing.
 - **Sagas**: Multi-step workflows (RFQ acceptance → trade → confirmation → settlement).
 - **Idempotency**: Exactly-once effects via dedup/sequence checks, not exactly-once delivery.
+
+### 7.2.1 Communication Protocol Matrix
+
+| Source | Target | Protocol | Rationale |
+|--------|--------|----------|----------|
+| Browser | BFF | REST + WebSocket | Browser compatibility |
+| BFF | Query Services | gRPC (unary) | Low latency reads |
+| BFF | Command Services | gRPC (unary) | Type-safe commands |
+| BFF | Market Data Projection | gRPC (server streaming) | Real-time tick streaming |
+| Service | Service (sync) | gRPC | Performance, contracts |
+| Service | Service (async) | Kafka | Decoupling, replay |
+| LP Bot | RFQ Service | gRPC (bidirectional streaming) | High-frequency quotes |
 
 ### 7.3 Component Diagram (Mermaid)
 ```mermaid
@@ -228,7 +242,9 @@ flowchart TB
   UI3 <-->|REST| BFF_ANALYTICS
 
   BFF & BFF_ADMIN & BFF_ANALYTICS --> AUTH
-  BFF --> MDQ & RFQ_API & OMS_API & TRD_Q & NOTIF
+  BFF -->|gRPC| MDQ & RFQ_API & OMS_API & TRD_Q & NOTIF
+  BFF_ADMIN -->|gRPC| RFQ_API & OMS_API
+  BFF_ANALYTICS -->|gRPC| ANA
 
   MDING --> BUS
   RFQ_API & OMS_API & EXEC & POST & ANA <--> BUS
@@ -264,6 +280,27 @@ flowchart TB
 * Enforces entitlements consistently for UI-facing operations
 * Handles WebSocket session management, backpressure, fan-out strategy
 * Provides a stable contract for multiple UIs (Workstation, Admin, Analytics)
+* **Translates REST/WebSocket to gRPC** for internal service communication
+
+### 7.5 Why gRPC for Internal Communication
+
+| Consideration | gRPC Advantage |
+|--------------|----------------|
+| **Performance** | Binary Protobuf serialization is 3-10x faster than JSON |
+| **Streaming** | Native support for server, client, and bidirectional streaming |
+| **Type Safety** | Compile-time contract enforcement via code generation |
+| **Deadlines** | Built-in timeout propagation prevents cascading failures |
+| **Interceptors** | Standardized middleware for auth, logging, metrics |
+| **Load Balancing** | gRPC-aware L7 load balancing with health checking |
+
+#### 7.5.1 gRPC Streaming Use Cases in Orion
+
+| Use Case | Stream Type | Description |
+|----------|-------------|-------------|
+| Market Data Ticks | Server Streaming | BFF subscribes, receives continuous tick updates |
+| RFQ Quote Watch | Server Streaming | BFF watches for incoming quotes on an RFQ |
+| LP Quote Flow | Bidirectional | LP bots send quotes, receive RFQ notifications |
+| Trade Blotter Live | Server Streaming | Real-time trade updates pushed to BFF |
 
 ---
 
@@ -608,8 +645,10 @@ All domain services must publish events for state changes. Services must never a
 
 ### 9.2 Command vs Event
 
-* **Command (sync)**: UI → BFF → domain service (HTTP/gRPC)
-  Example: `POST /rfqs`, `POST /orders`, `POST /rfqs/{id}/accept`
+* **Command (sync)**: UI → BFF (REST) → domain service (**gRPC**)
+  Example: `CreateRFQ`, `AcceptQuote`, `PlaceOrder`
+* **Query (sync)**: UI → BFF (REST) → query service (**gRPC** or Redis)
+  Example: `GetSnapshot`, `ListTrades`, `GetRFQDetails`
 * **Event (async)**: service → Kafka (immutable fact)
   Example: `RFQCreated`, `QuoteReceived`, `TradeExecuted`
 
@@ -715,13 +754,19 @@ Examples:
 
 ### 9.11 Schema Strategy & Versioning
 
-**FR-SCHEMA-01** Use JSON schemas in `/schemas` for MVP; optional Avro/Protobuf later.
+**FR-SCHEMA-01** Use **Protobuf** for gRPC service contracts (`/proto/v1/`) and JSON schemas for Kafka events (`/schemas/v1/`).
 **FR-SCHEMA-02** Backward compatible changes only within `v1`:
 
 * adding optional fields allowed
 * removing/renaming fields not allowed
-  **FR-SCHEMA-03** Breaking changes require new major topic version (`v2`) and dual publishing window if needed.
-  **FR-SCHEMA-04** Consumers must ignore unknown fields (forward compatibility).
+
+**FR-SCHEMA-03** Breaking changes require new major version (`v2`) and dual publishing window if needed.
+**FR-SCHEMA-04** Consumers must ignore unknown fields (forward compatibility).
+**FR-SCHEMA-05** Protobuf best practices:
+
+* Reserve deleted field numbers to prevent reuse
+* Use `optional` for nullable fields
+* Include `oneof` for polymorphic messages
 
 ### 9.12 Exactly-once “Business Guarantee” (What We Promise)
 
@@ -827,11 +872,74 @@ Orion guarantees:
 * `POST /admin/killswitch/enable|disable`
 * `POST /admin/users`
 
-### 11.3 Internal Service APIs
+### 11.3 Internal Service APIs (gRPC)
 
-Internal services are not directly called by UI. Only BFF calls internal services.
+Internal services are not directly called by UI. Only BFF calls internal services via **gRPC**.
 
-* Command APIs can be REST; inter-service async via Kafka.
+#### 11.3.1 gRPC Service Definitions
+
+All internal services expose gRPC interfaces defined in `/proto/v1/`:
+
+**MarketDataService** (`marketdata.proto`)
+```protobuf
+service MarketDataService {
+  // Unary: get current snapshot
+  rpc GetSnapshot(SnapshotRequest) returns (SnapshotResponse);
+  
+  // Server streaming: subscribe to real-time ticks
+  rpc StreamTicks(TickSubscription) returns (stream MarketTick);
+}
+```
+
+**RFQService** (`rfq.proto`)
+```protobuf
+service RFQService {
+  rpc CreateRFQ(CreateRFQRequest) returns (CreateRFQResponse);
+  rpc GetRFQ(GetRFQRequest) returns (RFQDetails);
+  rpc AcceptQuote(AcceptQuoteRequest) returns (AcceptQuoteResponse);
+  rpc CancelRFQ(CancelRFQRequest) returns (CancelRFQResponse);
+  
+  // Server streaming: watch RFQ updates (quotes arriving)
+  rpc WatchRFQ(WatchRFQRequest) returns (stream RFQUpdate);
+}
+```
+
+**ExecutionService** (`execution.proto`)
+```protobuf
+service ExecutionService {
+  rpc GetTrade(GetTradeRequest) returns (TradeDetails);
+  rpc ListTrades(ListTradesRequest) returns (ListTradesResponse);
+}
+```
+
+**PostTradeService** (`posttrade.proto`)
+```protobuf
+service PostTradeService {
+  rpc GetConfirmation(GetConfirmationRequest) returns (ConfirmationDetails);
+  rpc GetSettlementStatus(SettlementStatusRequest) returns (SettlementStatus);
+}
+```
+
+**AdminService** (`admin.proto`)
+```protobuf
+service AdminService {
+  rpc CreateInstrument(CreateInstrumentRequest) returns (Instrument);
+  rpc UpdateInstrument(UpdateInstrumentRequest) returns (Instrument);
+  rpc SetKillSwitch(KillSwitchRequest) returns (KillSwitchResponse);
+  rpc UpdateLimits(UpdateLimitsRequest) returns (LimitsResponse);
+}
+```
+
+#### 11.3.2 gRPC Benefits in Orion
+
+| Benefit | Application |
+|---------|-------------|
+| **Low latency** | Sub-millisecond serialization for hot paths |
+| **Strong typing** | Protobuf schemas prevent contract drift |
+| **Streaming** | Server-streaming for market data; bidirectional for LP quotes |
+| **Code generation** | Auto-generated clients/servers reduce boilerplate |
+| **Deadlines** | Built-in timeout propagation across service calls |
+| **Load balancing** | gRPC-aware L7 load balancing in service mesh |
 
 ---
 
@@ -900,13 +1008,14 @@ Internal services are not directly called by UI. Only BFF calls internal service
 
 * **VPC**: multi-AZ, private subnets for compute/data, public for ALB only
 * **ECS Fargate**: microservices runtime
-* **ALB**: ingress for REST + WebSocket
+* **ALB**: ingress for REST + WebSocket (with HTTP/2 for gRPC support)
 * **ECR**: container registry
 * **MSK (Kafka)**: event bus
 * **RDS Postgres**: primary relational store
 * **ElastiCache Redis**: caching and snapshots
 * **S3**: archives, exports, replay datasets
 * **CloudWatch**: logs, metrics, alarms
+* **App Mesh** (optional): service mesh for gRPC load balancing and observability
 * **Optional**: OpenSearch (search), EventBridge/SNS (alerts), API Gateway (if desired)
 
 ### 13.1.1 AWS Deployment Diagram (Mermaid)
@@ -942,9 +1051,9 @@ flowchart TB
     end
   end
 
-  User -->|HTTPS| ALB
+  User -->|HTTPS/REST| ALB
   ALB --> ECS_BFF
-  ECS_BFF --> ECS_SVCS
+  ECS_BFF -->|gRPC| ECS_SVCS
   ECS_SVCS --> MSK & RDS & REDIS & OS
   ECS_SVCS --> S3 & CW
   MSK --> CW
@@ -1018,12 +1127,13 @@ sequenceDiagram
   box rgb(255, 243, 224) BFF Layer
     participant BFF as 🔌 Workstation BFF
   end
-  box rgb(243, 229, 245) Messaging
-    participant K as 📨 Kafka/MSK
-  end
   box rgb(232, 245, 233) Services
+    participant MDQ as 📊 MarketData Query
     participant ING as 📈 MarketData Ingest
     participant PROJ as 📊 Snapshot Projector
+  end
+  box rgb(243, 229, 245) Messaging
+    participant K as 📨 Kafka/MSK
   end
   box rgb(255, 248, 225) Data
     participant R as ⚡ Redis
@@ -1039,15 +1149,21 @@ sequenceDiagram
 
   UI->>BFF: WS SUBSCRIBE(instrumentId)
   activate BFF
-  BFF->>R: read snapshot
-  activate R
-  R-->>BFF: snapshot data
-  deactivate R
+  BFF->>MDQ: gRPC GetSnapshot()
+  activate MDQ
+  MDQ->>R: read snapshot
+  R-->>MDQ: snapshot data
+  MDQ-->>BFF: SnapshotResponse
+  deactivate MDQ
   BFF-->>UI: send snapshot
 
-  loop Streaming Updates
-    BFF->>K: consume MarketTickReceived
-    BFF-->>UI: send incremental updates
+  rect rgb(240, 255, 240)
+    Note over BFF,MDQ: gRPC Server Streaming
+    BFF->>MDQ: gRPC StreamTicks()
+    loop Streaming Updates
+      MDQ-->>BFF: stream MarketTick
+      BFF-->>UI: WS push incremental update
+    end
   end
   deactivate BFF
 ```
@@ -1074,12 +1190,12 @@ sequenceDiagram
   end
 
   rect rgb(240, 248, 255)
-    Note over UI,K: Phase 1: RFQ Creation
+    Note over UI,K: Phase 1: RFQ Creation via gRPC
     UI->>+BFF: POST /rfqs
-    BFF->>+RFQ: CreateRFQ(command)
+    BFF->>+RFQ: gRPC CreateRFQ()
     RFQ->>RFQ: write rfq + outbox
     RFQ->>K: publish RFQCreated
-    RFQ-->>-BFF: RFQ created
+    RFQ-->>-BFF: CreateRFQResponse
     BFF-->>-UI: 201 Created
   end
 
@@ -1091,12 +1207,21 @@ sequenceDiagram
     RFQ->>RFQ: aggregate quotes
   end
 
+  rect rgb(248, 245, 255)
+    Note over UI,RFQ: Phase 2b: Watch Quotes via gRPC Streaming
+    BFF->>RFQ: gRPC WatchRFQ(rfqId)
+    loop Quote Updates
+      RFQ-->>BFF: stream RFQUpdate
+      BFF-->>UI: WS push quote update
+    end
+  end
+
   rect rgb(255, 248, 240)
-    Note over UI,K: Phase 3: Quote Acceptance
+    Note over UI,K: Phase 3: Quote Acceptance via gRPC
     UI->>+BFF: POST /rfqs/{id}/accept
-    BFF->>+RFQ: AcceptQuote(command)
+    BFF->>+RFQ: gRPC AcceptQuote()
     RFQ->>K: publish QuoteAccepted
-    RFQ-->>-BFF: accepted
+    RFQ-->>-BFF: AcceptQuoteResponse
     BFF-->>-UI: 200 OK
   end
 

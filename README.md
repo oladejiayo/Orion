@@ -71,12 +71,22 @@ Orion demonstrates those capabilities end-to-end using an **event-driven microse
 ## Architecture Overview
 
 Orion uses:
-- **BFF (Backend-for-Frontend)** for UI-specific APIs and WebSocket streaming
+- **BFF (Backend-for-Frontend)** for UI-specific APIs (REST/GraphQL) and WebSocket streaming
+- **gRPC** for high-performance internal service-to-service communication
 - **Kafka (AWS MSK)** as the message bus for immutable domain events
 - **CQRS** read models (projections) for fast workstation queries
 - **Outbox pattern** for correct event publishing
 - **Idempotent consumers + DLQ** for resilience
 - **AWS ECS/Fargate** for runtime, **RDS Postgres** for persistence, **Redis** for hot snapshots
+
+### Communication Patterns
+
+| Path | Protocol | Why |
+|------|----------|-----|
+| UI ↔ BFF | REST + WebSocket | Browser compatibility, real-time streaming |
+| BFF → Domain Services | **gRPC** | Low latency, strongly-typed contracts, streaming |
+| Service ↔ Service (sync) | **gRPC** | Performance, schema enforcement, bidirectional streaming |
+| Service → Service (async) | Kafka | Decoupling, replay, event sourcing |
 
 ### Diagram
 ```mermaid
@@ -116,6 +126,8 @@ flowchart TB
   UI <-->|REST/WS| BFF
   UI2 <-->|REST| BFF_ADMIN
   BFF & BFF_ADMIN --> AUTH
+  BFF -->|gRPC| RFQ & EXEC & POST
+  BFF_ADMIN -->|gRPC| RFQ & POST
 
   MDING --> BUS
   RFQ & EXEC & POST & ANA <--> BUS
@@ -235,8 +247,15 @@ The UI **never** calls internal microservices directly.
 **Runtime**
 
 * Java (recommended: 21) + Spring Boot (services)
+* **gRPC + Protobuf** for internal service communication
 * Web UI (React/Next.js recommended)
 * Kafka (local: Redpanda or Kafka; AWS: MSK)
+
+**Communication**
+
+* **REST/WebSocket**: UI ↔ BFF (browser compatibility)
+* **gRPC**: BFF ↔ Services, Service ↔ Service (performance + streaming)
+* **Kafka**: Async events, CQRS projections, replay
 
 **Data**
 
@@ -297,6 +316,15 @@ The UI **never** calls internal microservices directly.
     rfq.quote_received.json
     rfq.quote_accepted.json
     trade.executed.json
+
+/proto
+  /v1
+    common.proto
+    marketdata.proto
+    rfq.proto
+    execution.proto
+    posttrade.proto
+    admin.proto
 
 /infra
   /docker-compose
