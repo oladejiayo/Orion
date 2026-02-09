@@ -178,27 +178,27 @@ In addition to roles, a user has entitlements:
 ### 7.3 Component Diagram (Mermaid)
 ```mermaid
 flowchart LR
-  UI[Web Workstation] <--REST/WS--> BFF[BFF: Workstation API\n(REST/GraphQL + WebSocket)]
+  UI[Web Workstation] <--REST/WS--> BFF[BFF: Workstation API (REST/GraphQL + WebSocket)]
   UI2[Admin Console] <--REST--> BFF_ADMIN[BFF: Admin API]
   UI3[Analytics UI] <--REST--> BFF_ANALYTICS[BFF: Analytics API]
 
-  BFF --> AUTH[Auth/OIDC\n(Cognito or Keycloak)]
-  BFF --> MDQ[Market Data Query Service\n(Read Model)]
-  BFF --> RFQ_API[RFQ Service\n(Command API)]
-  BFF --> OMS_API[OMS Service\n(Command API)]
-  BFF --> TRD_Q[Trade Query Service\n(Read Model)]
-  BFF --> NOTIF[Notifications Service\n(User alerts)]
+  BFF --> AUTH[Auth/OIDC (Cognito or Keycloak)]
+  BFF --> MDQ[Market Data Query Service (Read Model)]
+  BFF --> RFQ_API[RFQ Service (Command API)]
+  BFF --> OMS_API[OMS Service (Command API)]
+  BFF --> TRD_Q[Trade Query Service (Read Model)]
+  BFF --> NOTIF[Notifications Service (User alerts)]
 
-  MDING[Market Data Ingest\nSim/Replays/Adapters] --> BUS[(Kafka/MSK Topics)]
+  MDING[Market Data Ingest / Sim / Replays / Adapters] --> BUS[(Kafka/MSK Topics)]
   RFQ_API <--> BUS
   OMS_API <--> BUS
-  EXEC[Execution Service\nRFQ accept -> Trade] <--> BUS
-  POST[Post-Trade Service\nConfirm/Settle] <--> BUS
-  ANA[Analytics/Indices\nStream Processing] <--> BUS
+  EXEC[Execution Service RFQ accept -> Trade] <--> BUS
+  POST[Post-Trade Service Confirm / Settle] <--> BUS
+  ANA[Analytics / Indices Stream Processing] <--> BUS
 
   PSQL[(RDS Postgres)]
-  REDIS[(Redis/ElastiCache)]
-  S3[(S3 Archive/Exports)]
+  REDIS[(Redis / ElastiCache)]
+  S3[(S3 Archive / Exports)]
   OS[(Optional OpenSearch)]
 
   RFQ_API --> PSQL
