@@ -308,6 +308,42 @@ flowchart TB
 
 ### 8.1 Authentication, Sessions, and Identity
 
+```mermaid
+sequenceDiagram
+  autonumber
+  box rgb(225, 245, 254) Client
+    participant UI as 🖥️ Web UI
+  end
+  box rgb(255, 243, 224) BFF
+    participant BFF as 🔌 BFF
+  end
+  box rgb(252, 228, 236) Identity
+    participant IDP as 🔐 OIDC Provider
+  end
+  box rgb(232, 245, 233) Services
+    participant SVC as 📦 Domain Service
+  end
+
+  UI->>IDP: Redirect to login
+  IDP-->>UI: Auth code
+  UI->>IDP: Exchange code for tokens
+  IDP-->>UI: Access + Refresh tokens (JWT)
+  Note over UI: Store tokens securely
+
+  UI->>BFF: API request + Bearer token
+  BFF->>BFF: Validate JWT signature
+  BFF->>BFF: Extract roles, tenant, entitlements
+  BFF->>SVC: gRPC call + context metadata
+  SVC-->>BFF: Response
+  BFF-->>UI: JSON response
+
+  rect rgb(255, 248, 225)
+    Note over UI,IDP: Silent Token Refresh
+    UI->>IDP: Refresh token request
+    IDP-->>UI: New access token
+  end
+```
+
 **FR-IDENT-01** OIDC login via Cognito or Keycloak.
 **FR-IDENT-02** Issue JWT access token with roles + tenant + entitlements claims.
 **FR-IDENT-03** Refresh tokens supported (UI silent renew).
@@ -334,6 +370,60 @@ flowchart TB
 **FR-REF-04** Reference data changes emit events (`InstrumentUpdated`, `VenueUpdated`, `LPConfigUpdated`) to refresh caches/read models.
 
 ### 8.4 Market Data (Ingest, Normalize, Distribute)
+
+```mermaid
+flowchart LR
+  subgraph sources[" 📡 Data Sources"]
+    SIM["🎲 Simulator"]
+    REPLAY["⏯️ Replay"]
+    ADAPT["🔌 Adapter"]
+  end
+
+  subgraph ingest[" 📥 Ingestion Layer"]
+    ING["📦 Market Data\nIngest Service"]
+    NORM["⚖️ Normalize"]
+    VAL["✅ Validate"]
+  end
+
+  subgraph bus[" 📨 Event Bus"]
+    KAFKA[("Kafka\ninstrumentId partition")]
+  end
+
+  subgraph projection[" 📊 Projection Layer"]
+    PROJ["🔄 Snapshot\nProjector"]
+    REDIS[("⚡ Redis\nLatest Ticks")]
+  end
+
+  subgraph distribution[" 📤 Distribution"]
+    BFF["🔌 BFF"]
+    STREAM["🌊 gRPC Stream"]
+    COALESCE["⏱️ Coalesce\n10Hz"]
+  end
+
+  subgraph clients[" 🖥️ Clients"]
+    UI["📊 Web UI"]
+  end
+
+  SIM & REPLAY & ADAPT --> ING
+  ING --> NORM --> VAL --> KAFKA
+  KAFKA --> PROJ --> REDIS
+  KAFKA --> STREAM
+  BFF --> REDIS
+  STREAM --> BFF
+  BFF --> COALESCE --> UI
+
+  classDef sourceStyle fill:#e3f2fd,stroke:#1565c0,color:#1565c0
+  classDef ingestStyle fill:#e8f5e9,stroke:#2e7d32,color:#2e7d32
+  classDef busStyle fill:#f3e5f5,stroke:#4a148c,color:#4a148c
+  classDef projStyle fill:#fff8e1,stroke:#ff8f00,color:#ff8f00
+  classDef distStyle fill:#fff3e0,stroke:#e65100,color:#e65100
+
+  class SIM,REPLAY,ADAPT sourceStyle
+  class ING,NORM,VAL ingestStyle
+  class KAFKA busStyle
+  class PROJ,REDIS projStyle
+  class BFF,STREAM,COALESCE distStyle
+```
 
 #### 8.4.1 Ingestion Modes
 
@@ -379,6 +469,48 @@ flowchart TB
 
 ### 8.5 Workstation UI Requirements
 
+```mermaid
+block-beta
+  columns 3
+
+  block:header:3
+    columns 3
+    H1["Orion Workstation"]
+    H2["User: trader@acme.com"]
+    H3["🔔 Notifications"]
+  end
+
+  block:left:1
+    columns 1
+    MW["\n\n📊 Market Watch\n\nWatchlist: FX Majors\n\nEUR/USD  1.0842 / 1.0845\nGBP/USD  1.2634 / 1.2637\nUSD/JPY  149.23 / 149.26\nAUD/USD  0.6542 / 0.6545\n\n"]
+  end
+
+  block:center:1
+    columns 1
+    RFQ["\n📝 RFQ Ticket\n\nInstrument: EUR/USD\nSide: BUY\nSize: 5,000,000\nExpiry: 30s\n\n[Send RFQ]\n"]
+    QUOTES["\n💬 Quotes\n\nLP Alpha: 1.0843\nLP Beta:  1.0844\nLP Gamma: 1.0842 ⭐\n\n[Accept Best]\n"]
+  end
+
+  block:right:1
+    columns 1
+    TRADES["\n\n💱 Trades Blotter\n\n#1234 EUR/USD BUY 5M @ 1.0842\n#1233 GBP/USD SELL 2M @ 1.2635\n#1232 USD/JPY BUY 10M @ 149.24\n\n"]
+  end
+
+  block:bottom:3
+    columns 2
+    ANA["📈 Analytics: Spread Chart"]
+    AUDIT["📋 Audit Trail: correlationId=abc-123"]
+  end
+
+  style header fill:#1565c0,color:#fff
+  style MW fill:#e3f2fd,stroke:#1565c0
+  style RFQ fill:#fff3e0,stroke:#e65100
+  style QUOTES fill:#e8f5e9,stroke:#2e7d32
+  style TRADES fill:#fce4ec,stroke:#c2185b
+  style ANA fill:#f3e5f5,stroke:#7b1fa2
+  style AUDIT fill:#eceff1,stroke:#546e7a
+```
+
 **FR-UI-01** Market Watch:
 
 * watchlists (create, rename, reorder)
@@ -423,6 +555,35 @@ flowchart TB
 States:
 
 * `CREATED` → `SENT` → `QUOTING` → `ACCEPTED` | `REJECTED` | `EXPIRED` → `TRADED` (if accepted)
+
+```mermaid
+stateDiagram-v2
+  [*] --> CREATED: User submits RFQ
+  CREATED --> SENT: Route to LPs
+  SENT --> QUOTING: First quote received
+  QUOTING --> QUOTING: More quotes arrive
+  QUOTING --> ACCEPTED: User accepts quote
+  QUOTING --> EXPIRED: Timeout reached
+  QUOTING --> CANCELLED: User cancels
+  SENT --> EXPIRED: No quotes & timeout
+  SENT --> CANCELLED: User cancels
+  ACCEPTED --> TRADED: Execution confirmed
+  ACCEPTED --> REJECTED: LP last-look reject
+  REJECTED --> [*]
+  EXPIRED --> [*]
+  CANCELLED --> [*]
+  TRADED --> [*]
+
+  note right of QUOTING
+    Quotes are collected and ranked.
+    Best price wins with time priority.
+  end note
+
+  note right of ACCEPTED
+    Optional last-look window
+    for LP to reject.
+  end note
+```
 
 **FR-RFQ-01** RFQ creation includes:
 
@@ -498,6 +659,33 @@ States:
 * `NEW/ACK/PARTIAL_FILL` → `CANCEL_REQUESTED` → `CANCELLED`
 * `REJECTED` terminal
 
+```mermaid
+stateDiagram-v2
+  [*] --> NEW: Order submitted
+  NEW --> ACK: Validated & accepted
+  NEW --> REJECTED: Validation failed
+  ACK --> PARTIAL_FILL: Partial match
+  ACK --> FILLED: Full match
+  ACK --> CANCEL_REQUESTED: Cancel request
+  PARTIAL_FILL --> PARTIAL_FILL: More fills
+  PARTIAL_FILL --> FILLED: Final fill
+  PARTIAL_FILL --> CANCEL_REQUESTED: Cancel remaining
+  CANCEL_REQUESTED --> CANCELLED: Cancel confirmed
+  REJECTED --> [*]
+  FILLED --> [*]
+  CANCELLED --> [*]
+
+  note right of ACK
+    Order is live in the book
+    awaiting matches.
+  end note
+
+  note right of PARTIAL_FILL
+    Partial execution.
+    Remaining qty still active.
+  end note
+```
+
 **FR-OMS-04** Enforce valid state transitions (finite state machine).
 **FR-OMS-05** Cancels are idempotent; cancelling an already cancelled order returns stable response.
 **FR-OMS-06** Amendments (optional V1):
@@ -568,6 +756,29 @@ States:
 **FR-PT-02** Settlement workflow states:
 
 * `PENDING` → `SETTLED` | `FAILED` → `RETRYING` → terminal (after max retries)
+
+```mermaid
+stateDiagram-v2
+  [*] --> PENDING: Trade executed
+  PENDING --> SETTLING: Settlement initiated
+  SETTLING --> SETTLED: Success
+  SETTLING --> FAILED: Settlement error
+  FAILED --> RETRYING: Auto-retry triggered
+  RETRYING --> SETTLING: Retry attempt
+  RETRYING --> FAILED_FINAL: Max retries exceeded
+  SETTLED --> [*]
+  FAILED_FINAL --> [*]
+
+  note right of PENDING
+    Awaiting settlement
+    window/batch.
+  end note
+
+  note right of RETRYING
+    Exponential backoff.
+    Max 3 retries default.
+  end note
+```
 
 **FR-PT-03** Settlement simulation rules:
 
@@ -725,6 +936,36 @@ Examples:
 ### 9.8 Outbox Pattern (Producer Side) — Mandatory
 
 **FR-OUTBOX-01** Every state change + event record must be written in the same DB transaction.
+
+```mermaid
+sequenceDiagram
+  autonumber
+  box rgb(232, 245, 233) Domain Service
+    participant SVC as 📦 Service
+    participant DB as 🐘 PostgreSQL
+  end
+  box rgb(255, 243, 224) Outbox Publisher
+    participant OUT as 📤 Outbox Publisher
+  end
+  box rgb(243, 229, 245) Event Bus
+    participant K as 📨 Kafka
+  end
+
+  SVC->>DB: BEGIN TRANSACTION
+  SVC->>DB: UPDATE entity state
+  SVC->>DB: INSERT into outbox_events
+  SVC->>DB: COMMIT
+  Note over SVC,DB: Atomic write guarantees consistency
+
+  loop Poll outbox table
+    OUT->>DB: SELECT unpublished events
+    DB-->>OUT: event rows
+    OUT->>K: publish event
+    K-->>OUT: ack
+    OUT->>DB: UPDATE published_at = now()
+  end
+```
+
 **FR-OUTBOX-02** A dedicated outbox publisher:
 
 * polls outbox table
@@ -735,6 +976,44 @@ Examples:
 * safe for duplicates (publishing same outbox row twice must still be safe)
 
 ### 9.9 DLQ & Poison Message Strategy
+
+```mermaid
+flowchart TB
+  subgraph consumer[" 📥 Event Consumer"]
+    RECV["📨 Receive Event"]
+    PROC["⚙️ Process"]
+    SUCCESS["✅ Success"]
+    FAIL["❌ Failure"]
+    RETRY["🔄 Retry Logic"]
+  end
+
+  subgraph dlq[" ⚠️ Dead Letter Queue"]
+    DLQ[("📂 DLQ Topic")]
+    ALERT["🚨 Alert"]
+    REVIEW["🔍 Manual Review"]
+    REPLAY["▶️ Replay"]
+  end
+
+  RECV --> PROC
+  PROC --> SUCCESS
+  PROC --> FAIL
+  FAIL --> RETRY
+  RETRY -->|"Retry 1-N\nexp backoff"| PROC
+  RETRY -->|"Max retries\nexceeded"| DLQ
+  DLQ --> ALERT
+  ALERT --> REVIEW
+  REVIEW --> REPLAY
+  REPLAY -->|"Fixed"| RECV
+  SUCCESS --> COMMIT["💾 Commit Offset"]
+
+  classDef successStyle fill:#c8e6c9,stroke:#2e7d32,color:#1b5e20
+  classDef failStyle fill:#ffcdd2,stroke:#c62828,color:#b71c1c
+  classDef dlqStyle fill:#fff3e0,stroke:#e65100,color:#e65100
+
+  class SUCCESS,COMMIT successStyle
+  class FAIL,DLQ failStyle
+  class ALERT,REVIEW,REPLAY dlqStyle
+```
 
 **FR-DLQ-01** Any event that fails processing after N retries must be placed on a DLQ topic.
 **FR-DLQ-02** DLQ entries must include:
@@ -761,6 +1040,62 @@ Examples:
 * removing/renaming fields not allowed
 
 **FR-SCHEMA-03** Breaking changes require new major version (`v2`) and dual publishing window if needed.
+
+### 9.13 CQRS Pattern (Command Query Responsibility Segregation)
+
+Orion separates write operations (commands) from read operations (queries) for scalability and performance:
+
+```mermaid
+flowchart TB
+  subgraph writes[" ✏️ Write Side"]
+    CMD["📨 Command"]
+    WSVC["📦 Write Service"]
+    WSTORE[("🐘 Write Store")]
+    OUTBOX[("📤 Outbox")]
+  end
+
+  subgraph bus[" 📨 Event Bus"]
+    KAFKA[("Kafka")]
+  end
+
+  subgraph reads[" 📖 Read Side"]
+    PROJ["🔄 Projector"]
+    RSTORE1[("⚡ Redis\nSnapshots")]
+    RSTORE2[("🔍 OpenSearch\nBlotters")]
+    RSTORE3[("🐘 Read DB\nReports")]
+  end
+
+  subgraph query[" 📊 Query Side"]
+    QRY["📊 Query"]
+    QSVC["📖 Query Service"]
+  end
+
+  CMD --> WSVC
+  WSVC --> WSTORE
+  WSVC --> OUTBOX
+  OUTBOX --> KAFKA
+  KAFKA --> PROJ
+  PROJ --> RSTORE1 & RSTORE2 & RSTORE3
+
+  QRY --> QSVC
+  QSVC --> RSTORE1 & RSTORE2 & RSTORE3
+
+  classDef writeStyle fill:#fff9c4,stroke:#f57f17,color:#f57f17
+  classDef readStyle fill:#e0f2f1,stroke:#004d40,color:#004d40
+  classDef busStyle fill:#f3e5f5,stroke:#4a148c,color:#4a148c
+  classDef storeStyle fill:#eceff1,stroke:#37474f,color:#37474f
+
+  class CMD,WSVC writeStyle
+  class QRY,QSVC,PROJ readStyle
+  class KAFKA busStyle
+  class WSTORE,OUTBOX,RSTORE1,RSTORE2,RSTORE3 storeStyle
+```
+
+**Benefits:**
+- Write and read models can scale independently
+- Read models optimized for specific query patterns
+- Multiple read projections from same event stream
+- Read models are rebuildable by replaying events
 **FR-SCHEMA-04** Consumers must ignore unknown fields (forward compatibility).
 **FR-SCHEMA-05** Protobuf best practices:
 

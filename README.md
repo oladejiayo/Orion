@@ -57,6 +57,24 @@ Orion demonstrates those capabilities end-to-end using an **event-driven microse
 - Liquidity provider bots publish quotes
 - Quote acceptance triggers trade execution (idempotent & auditable)
 
+```mermaid
+flowchart LR
+  A["📝 Create RFQ"] --> B["📤 Route to LPs"]
+  B --> C["💬 Collect Quotes"]
+  C --> D{"Best Quote?"}
+  D -->|Accept| E["✅ Execute Trade"]
+  D -->|Timeout| F["⏱️ Expired"]
+  E --> G["📋 Post-Trade"]
+
+  style A fill:#e3f2fd,stroke:#1565c0
+  style B fill:#fff3e0,stroke:#e65100
+  style C fill:#f3e5f5,stroke:#7b1fa2
+  style D fill:#fff9c4,stroke:#f57f17
+  style E fill:#c8e6c9,stroke:#2e7d32
+  style F fill:#ffcdd2,stroke:#c62828
+  style G fill:#e0f2f1,stroke:#00695c
+```
+
 ### Post-Trade
 - Trade confirmations (JSON payloads; PDF optional)
 - Settlement simulation state machine (PENDING → SETTLED/FAILED → retries)
@@ -187,6 +205,46 @@ flowchart TB
 * Every meaningful business change emits an **immutable domain event**
 * Delivery is **at-least-once** → consumers must be **idempotent**
 * Read models are **eventually consistent** projections (CQRS)
+
+### Event Flow Architecture
+
+```mermaid
+flowchart LR
+  subgraph producers[" ✏️ Producers"]
+    P1["RFQ Service"]
+    P2["Execution Service"]
+    P3["MarketData Ingest"]
+  end
+
+  subgraph bus[" 📨 Kafka"]
+    T1[("rfq.lifecycle.v1")]
+    T2[("execution.trades.v1")]
+    T3[("marketdata.ticks.v1")]
+  end
+
+  subgraph consumers[" 📥 Consumers"]
+    C1["LP Bot Service"]
+    C2["PostTrade Service"]
+    C3["Analytics Service"]
+    C4["BFF Projections"]
+  end
+
+  P1 -->|outbox| T1
+  P2 -->|outbox| T2
+  P3 --> T3
+
+  T1 --> C1 & C4
+  T2 --> C2 & C3 & C4
+  T3 --> C3 & C4
+
+  classDef prodStyle fill:#fff9c4,stroke:#f57f17
+  classDef busStyle fill:#f3e5f5,stroke:#7b1fa2
+  classDef consStyle fill:#e8f5e9,stroke:#2e7d32
+
+  class P1,P2,P3 prodStyle
+  class T1,T2,T3 busStyle
+  class C1,C2,C3,C4 consStyle
+```
 
 ### Canonical Event Envelope
 
