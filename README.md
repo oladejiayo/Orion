@@ -1,4 +1,3 @@
-````markdown
 # Orion — Institutional Multi-Asset Liquidity & Data Platform (Event-Driven on AWS)
 
 Orion is a **portfolio-grade**, **cloud-native**, **event-driven** platform that models how modern institutional markets are served: **real-time market data**, **electronic execution workflows (RFQ + optional CLOB)**, **trade capture + post-trade automation**, and **analytics/data products**—all delivered through a **single-screen web workstation**.
