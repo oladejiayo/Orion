@@ -135,31 +135,16 @@ Without Docker Compose, every developer would have to install and configure thes
 
 ```mermaid
 flowchart TD
-    CMD["🐳 docker compose up -d"] --> NET
+    CMD["🐳 docker compose up -d"]
 
-    subgraph NET ["orion-network"]
-        direction TB
-
-        subgraph CORE ["Core Infrastructure"]
-            direction LR
-            RP["🟢 Redpanda\n<i>Messages :19092</i>"]
-            PG["🐘 Postgres\n<i>Storage :5432</i>"]
-            RD["⚡ Redis\n<i>Cache :6379</i>"]
-        end
-
-        subgraph UI ["Admin UIs"]
-            direction LR
-            CON["📊 Console\n<i>Kafka UI :8080</i>"]
-            PGA["🗄️ pgAdmin\n<i>DB Admin :5050</i>"]
-            RDC["📋 Redis Cmdr\n<i>Cache Inspector :8081</i>"]
-        end
-
-        RP --> CON
-        PG --> PGA
-        RD --> RDC
+    subgraph NET ["🌐 orion-network"]
+        RP["🟢 Redpanda\n<i>Messages · :19092</i>"] --> CON["📊 Console\n<i>Kafka UI · :8080</i>"]
+        PG["🐘 Postgres\n<i>Storage · :5432</i>"] --> PGA["📁 pgAdmin\n<i>DB Admin · :5050</i>"]
+        RD["⚡ Redis\n<i>Cache · :6379</i>"] --> RDC["📋 Redis Commander\n<i>Cache Inspector · :8081</i>"]
     end
 
-    NET --> OK["✅ All services healthy"]
+    CMD --> RP & PG & RD
+    CON & PGA & RDC --> OK["✅ All services healthy"]
 
     style CMD fill:#e3f2fd,stroke:#1976d2,color:#0d47a1
     style RP fill:#c8e6c9,stroke:#388e3c,color:#1b5e20
@@ -220,22 +205,21 @@ In software terms, every event flowing through our Redpanda message bus uses the
 
 ```mermaid
 flowchart TD
-    A["📢 Trade #123 executed!"] --> B
+    A["📢 Trade #123 executed!"]
+    A --> B["🏭 EventFactory.create\n<i>UUID · timestamp · correlation ID · v1</i>"]
 
-    B["🏭 EventFactory.create(...)\n<i>Auto-generates UUID, timestamp,</i>\n<i>correlation ID, version = 1</i>"]
-    B --> C
+    B --> FIELDS
 
-    subgraph C ["📨 EventEnvelope&lt;TradePayload&gt;"]
-        direction LR
+    subgraph ENV ["📨 EventEnvelope"]
         FIELDS["eventId: abc-123-def\neventType: TradeExecuted\noccurredAt: 2025-07-12T...\nproducer: execution-svc\ntenantId: tenant-001\ncorrelationId: xyz-789\nentity: Trade / trade-123 / v1\npayload: price 99.5 · qty 100"]
     end
 
-    C --> D["🔍 EventValidator.validate(envelope)\n<i>Checks all required fields</i>\n→ ValidationResult: valid ✅"]
-    D --> E["📤 EventSerializer.serialize(envelope)\n→ JSON string sent to Redpanda 🚀"]
+    FIELDS --> D["🔍 EventValidator.validate\n<i>Checks all required fields</i>\nValidationResult: valid ✅"]
+    D --> E["📤 EventSerializer.serialize\nJSON string sent to Redpanda 🚀"]
 
     style A fill:#fff3e0,stroke:#e65100,color:#bf360c
     style B fill:#e3f2fd,stroke:#1976d2,color:#0d47a1
-    style FIELDS fill:#fce4ec,stroke:#c62828,color:#b71c1c,text-align:left
+    style FIELDS fill:#fce4ec,stroke:#c62828,color:#b71c1c
     style D fill:#e8f5e9,stroke:#388e3c,color:#1b5e20
     style E fill:#e8f5e9,stroke:#4caf50,color:#1b5e20
 ```
@@ -297,22 +281,21 @@ Without a shared security library, every service would invent its own way of che
 
 ```mermaid
 flowchart TD
-    REQ["🔐 HTTP Request\n<i>Authorization: Bearer eyJhbG...</i>"] --> EXT
-    EXT["🔑 BearerTokenExtractor.extract(header)\n→ Extracts token from Bearer prefix"] --> JWT
-    JWT["🔄 Service validates JWT\n<i>Builds security context</i>"] --> CTX
+    REQ["🔐 HTTP Request\n<i>Authorization: Bearer eyJhbG...</i>"]
+    REQ --> EXT["🔑 BearerTokenExtractor\nExtracts token from Bearer header"]
+    EXT --> JWT["🔄 Service validates JWT\n<i>Builds security context</i>"]
+
+    JWT --> INFO
 
     subgraph CTX ["📦 OrionSecurityContext"]
-        direction LR
-        INFO["user: trader-42 / jane@acme\ntenant: acme-corp / Premium\nroles: SALES → implies TRADER\nassets: FX, RATES\nlimit: maxNotional 50,000,000"]
+        INFO["👤 trader-42 · jane@acme\n🏢 acme-corp · Premium\n🎭 SALES → implies TRADER\n📊 FX, RATES\n💰 maxNotional: 50,000,000"]
     end
 
-    CTX --> ROLE["🎭 RoleChecker\n<i>SALES implies TRADER</i>\n✅ Authorized"]
-    CTX --> ENT["📋 EntitlementChecker\n<i>Can trade FX?</i>\n✅ Entitled"]
-    CTX --> TEN["🏢 TenantEnforcer\n<i>acme-corp == acme-corp</i>\n✅ Isolated"]
+    INFO --> ROLE["🎭 RoleChecker\n<i>SALES implies TRADER</i>\n✅ Authorized"]
+    INFO --> ENT["📋 EntitlementChecker\n<i>Can trade FX?</i>\n✅ Entitled"]
+    INFO --> TEN["🏢 TenantEnforcer\n<i>acme-corp == acme-corp</i>\n✅ Isolated"]
 
-    ROLE --> OK["✅ Request proceeds!"]
-    ENT --> OK
-    TEN --> OK
+    ROLE & ENT & TEN --> OK["✅ Request proceeds!"]
 
     style REQ fill:#fff3e0,stroke:#e65100,color:#bf360c
     style EXT fill:#e3f2fd,stroke:#1976d2,color:#0d47a1
