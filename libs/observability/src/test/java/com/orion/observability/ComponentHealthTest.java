@@ -1,14 +1,13 @@
 package com.orion.observability;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
-import static org.assertj.core.api.Assertions.assertThat;
-
 /**
- * Tests for {@link ComponentHealth} record — validates factory methods,
- * field access, and equality.
+ * Tests for {@link ComponentHealth} record — validates factory methods, field access, and equality.
  */
 @DisplayName("ComponentHealth")
 class ComponentHealthTest {

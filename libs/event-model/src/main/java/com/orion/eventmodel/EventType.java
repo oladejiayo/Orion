@@ -4,9 +4,9 @@ import java.util.Optional;
 
 /**
  * All known event types in the Orion platform.
- * <p>
- * WHY an enum: compile-time safety, exhaustive switch, easy to add new types.
- * The {@code value} field holds the canonical string used in JSON serialization.
+ *
+ * <p>WHY an enum: compile-time safety, exhaustive switch, easy to add new types. The {@code value}
+ * field holds the canonical string used in JSON serialization.
  */
 public enum EventType {
 
@@ -75,9 +75,7 @@ public enum EventType {
         return Optional.empty();
     }
 
-    /**
-     * Checks whether a string corresponds to a known event type.
-     */
+    /** Checks whether a string corresponds to a known event type. */
     public static boolean isKnown(String value) {
         return fromString(value).isPresent();
     }

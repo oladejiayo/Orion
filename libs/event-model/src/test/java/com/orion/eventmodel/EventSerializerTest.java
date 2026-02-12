@@ -1,20 +1,18 @@
 package com.orion.eventmodel;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
+import java.util.Map;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
-import java.time.Instant;
-import java.util.Map;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-
 /**
  * Tests for EventSerializer (AC4: Serialization Utilities).
  *
- * WHY: Verify JSON round-trip, Instant serialization to ISO 8601,
- * generic payload handling, and error cases.
+ * <p>WHY: Verify JSON round-trip, Instant serialization to ISO 8601, generic payload handling, and
+ * error cases.
  */
 @DisplayName("US-01-03 AC4: EventSerializer")
 class EventSerializerTest {
@@ -24,9 +22,10 @@ class EventSerializerTest {
     private EventEnvelope<Map<String, Object>> sampleEvent() {
         return EventFactory.create(
                 EventType.TRADE_EXECUTED.value(),
-                "exec-svc", "tenant-1", ENTITY,
-                Map.of("price", 99.5, "quantity", 100)
-        );
+                "exec-svc",
+                "tenant-1",
+                ENTITY,
+                Map.of("price", 99.5, "quantity", 100));
     }
 
     @Nested
@@ -103,9 +102,7 @@ class EventSerializerTest {
         @Test
         @DisplayName("deserializes with typed payload")
         void typedPayload() {
-            var event = EventFactory.create(
-                    "TradeExecuted", "svc", "t1", ENTITY, "simple-string"
-            );
+            var event = EventFactory.create("TradeExecuted", "svc", "t1", ENTITY, "simple-string");
             var json = EventSerializer.serialize(event);
             var restored = EventSerializer.deserialize(json, String.class);
 

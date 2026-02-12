@@ -1,15 +1,15 @@
 package com.orion.observability;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-
 /**
- * Tests for {@link CorrelationContext} record — validates construction,
- * validation rules, MDC key constants, and immutability.
+ * Tests for {@link CorrelationContext} record — validates construction, validation rules, MDC key
+ * constants, and immutability.
  */
 @DisplayName("CorrelationContext")
 class CorrelationContextTest {
@@ -21,8 +21,14 @@ class CorrelationContextTest {
         @Test
         @DisplayName("should create context with all fields populated")
         void shouldCreateWithAllFields() {
-            var ctx = new CorrelationContext(
-                    "corr-001", "tenant-001", "user-001", "req-001", "span-abc", "trace-xyz");
+            var ctx =
+                    new CorrelationContext(
+                            "corr-001",
+                            "tenant-001",
+                            "user-001",
+                            "req-001",
+                            "span-abc",
+                            "trace-xyz");
 
             assertThat(ctx.correlationId()).isEqualTo("corr-001");
             assertThat(ctx.tenantId()).isEqualTo("tenant-001");

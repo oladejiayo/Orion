@@ -1,23 +1,21 @@
 package com.orion.verification;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-
-import static org.assertj.core.api.Assertions.assertThat;
-
 /**
  * Structural verification tests for the CI/CD pipeline (US-01-07).
  *
- * WHY: These tests ensure that all GitHub Actions workflow files,
- * reusable actions, CODEOWNERS, and Dockerfile templates exist and
- * contain the correct content for our Java 21 + Maven + Spring Boot stack.
- * Any accidental deletion or misconfiguration is caught by the build.
+ * <p>WHY: These tests ensure that all GitHub Actions workflow files, reusable actions, CODEOWNERS,
+ * and Dockerfile templates exist and contain the correct content for our Java 21 + Maven + Spring
+ * Boot stack. Any accidental deletion or misconfiguration is caught by the build.
  */
 @DisplayName("US-01-07: GitHub Actions CI Pipeline Structure")
 class CiPipelineStructureTest {
@@ -63,9 +61,7 @@ class CiPipelineStructureTest {
         @DisplayName("PR workflow uses Java 21")
         void prWorkflowUsesJava21() throws IOException {
             String content = readWorkflow("ci-pr.yml");
-            assertThat(content)
-                    .as("PR workflow must configure Java 21")
-                    .contains("21");
+            assertThat(content).as("PR workflow must configure Java 21").contains("21");
         }
 
         @Test
@@ -147,8 +143,9 @@ class CiPipelineStructureTest {
             // Caching is configured in the reusable composite action, not in
             // each workflow file. This avoids duplication. The setup-java
             // action's cache: 'maven' parameter handles ~/.m2/repository.
-            String content = Files.readString(
-                    projectRoot.resolve(".github/actions/setup-java-maven/action.yml"));
+            String content =
+                    Files.readString(
+                            projectRoot.resolve(".github/actions/setup-java-maven/action.yml"));
             assertThat(content)
                     .as("Reusable action must configure Maven dependency caching")
                     .contains("cache")
@@ -158,8 +155,8 @@ class CiPipelineStructureTest {
         @Test
         @DisplayName("All workflows use the reusable setup action for consistent caching")
         void workflowsUseReusableSetupAction() throws IOException {
-            for (String workflow : new String[]{"ci-pr.yml", "ci-main.yml",
-                    "proto-validate.yml"}) {
+            for (String workflow :
+                    new String[] {"ci-pr.yml", "ci-main.yml", "proto-validate.yml"}) {
                 String content = readWorkflow(workflow);
                 assertThat(content)
                         .as("Workflow %s must use the reusable setup-java-maven action", workflow)
@@ -309,8 +306,7 @@ class CiPipelineStructureTest {
         @Test
         @DisplayName("CODEOWNERS assigns global ownership")
         void codeownersHasGlobalOwnership() throws IOException {
-            String content = Files.readString(
-                    projectRoot.resolve(".github/CODEOWNERS"));
+            String content = Files.readString(projectRoot.resolve(".github/CODEOWNERS"));
             assertThat(content)
                     .as("CODEOWNERS must have a global ownership rule")
                     .containsPattern("\\*\\s+@");
@@ -337,8 +333,7 @@ class CiPipelineStructureTest {
         @Test
         @DisplayName("Dockerfile template uses multi-stage build")
         void dockerfileTemplateUsesMultiStage() throws IOException {
-            String content = Files.readString(
-                    projectRoot.resolve("services/Dockerfile.template"));
+            String content = Files.readString(projectRoot.resolve("services/Dockerfile.template"));
             assertThat(content)
                     .as("Dockerfile template must use multi-stage build (build + runtime)")
                     .contains("FROM")
@@ -349,8 +344,7 @@ class CiPipelineStructureTest {
         @Test
         @DisplayName("Dockerfile template runs as non-root user")
         void dockerfileTemplateRunsAsNonRoot() throws IOException {
-            String content = Files.readString(
-                    projectRoot.resolve("services/Dockerfile.template"));
+            String content = Files.readString(projectRoot.resolve("services/Dockerfile.template"));
             assertThat(content)
                     .as("Dockerfile template must run as non-root user for security")
                     .contains("USER");
@@ -367,8 +361,10 @@ class CiPipelineStructureTest {
         @Test
         @DisplayName("All workflows use pinned action versions")
         void workflowsUsePinnedActions() throws IOException {
-            for (String workflow : new String[]{"ci-pr.yml", "ci-main.yml",
-                    "proto-validate.yml", "docker-build.yml"}) {
+            for (String workflow :
+                    new String[] {
+                        "ci-pr.yml", "ci-main.yml", "proto-validate.yml", "docker-build.yml"
+                    }) {
                 String content = readWorkflow(workflow);
                 // Actions should use @v4, @v5, etc. not @main or @master
                 assertThat(content)
@@ -389,8 +385,10 @@ class CiPipelineStructureTest {
         @Test
         @DisplayName("All workflows specify runs-on")
         void allWorkflowsSpecifyRunner() throws IOException {
-            for (String workflow : new String[]{"ci-pr.yml", "ci-main.yml",
-                    "proto-validate.yml", "docker-build.yml"}) {
+            for (String workflow :
+                    new String[] {
+                        "ci-pr.yml", "ci-main.yml", "proto-validate.yml", "docker-build.yml"
+                    }) {
                 String content = readWorkflow(workflow);
                 assertThat(content)
                         .as("Workflow %s must specify runs-on", workflow)
@@ -404,7 +402,6 @@ class CiPipelineStructureTest {
     // ================================================================
 
     private static String readWorkflow(String filename) throws IOException {
-        return Files.readString(
-                projectRoot.resolve(".github/workflows/" + filename));
+        return Files.readString(projectRoot.resolve(".github/workflows/" + filename));
     }
 }

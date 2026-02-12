@@ -1,19 +1,17 @@
 package com.orion.security;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
 import com.orion.security.testing.TestSecurityContextFactory;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
-import java.util.List;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-
 /**
  * Tests for SecurityContextSerializer (AC7: Security Context Propagation).
  *
- * WHY: Verify JSON+Base64 round-trip of security context for gRPC metadata transport.
+ * <p>WHY: Verify JSON+Base64 round-trip of security context for gRPC metadata transport.
  */
 @DisplayName("US-01-04 AC7: SecurityContextSerializer")
 class SecurityContextSerializerTest {

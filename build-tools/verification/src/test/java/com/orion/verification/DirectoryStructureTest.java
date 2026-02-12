@@ -1,30 +1,28 @@
 package com.orion.verification;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-
-import static org.assertj.core.api.Assertions.assertThat;
-
 /**
  * Structural verification tests for the Orion monorepo (US-01-01).
  *
- * WHY: These tests codify the PRD's directory structure requirements
- * so that any accidental deletion or misconfiguration is caught by CI.
- * They run as part of the normal Maven build lifecycle.
+ * <p>WHY: These tests codify the PRD's directory structure requirements so that any accidental
+ * deletion or misconfiguration is caught by CI. They run as part of the normal Maven build
+ * lifecycle.
  */
 @DisplayName("US-01-01: Monorepo Directory Structure")
 class DirectoryStructureTest {
 
     /**
-     * The project root — two levels up from build-tools/verification/.
-     * We resolve this from the current working directory which Maven sets
-     * to the module directory during test execution.
+     * The project root — two levels up from build-tools/verification/. We resolve this from the
+     * current working directory which Maven sets to the module directory during test execution.
      */
     private static Path projectRoot;
 
@@ -324,8 +322,8 @@ class DirectoryStructureTest {
         @Test
         @DisplayName("Maven wrapper properties reference Maven 3.9.x")
         void mavenWrapperVersion() throws IOException {
-            String content = Files.readString(
-                    projectRoot.resolve(".mvn/wrapper/maven-wrapper.properties"));
+            String content =
+                    Files.readString(projectRoot.resolve(".mvn/wrapper/maven-wrapper.properties"));
             assertThat(content).contains("maven-3.9");
         }
     }
@@ -342,9 +340,7 @@ class DirectoryStructureTest {
         void javaVersionIs21() {
             // Runtime check: the JVM running these tests should be 21+
             int version = Runtime.version().feature();
-            assertThat(version)
-                    .as("Tests must run on Java 21+")
-                    .isGreaterThanOrEqualTo(21);
+            assertThat(version).as("Tests must run on Java 21+").isGreaterThanOrEqualTo(21);
         }
 
         @Test
@@ -393,7 +389,8 @@ class DirectoryStructureTest {
         @DisplayName("Root POM has UTF-8 encoding configured")
         void utf8Encoding() throws IOException {
             String pomContent = Files.readString(projectRoot.resolve("pom.xml"));
-            assertThat(pomContent).contains("<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>");
+            assertThat(pomContent)
+                    .contains("<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>");
         }
     }
 }

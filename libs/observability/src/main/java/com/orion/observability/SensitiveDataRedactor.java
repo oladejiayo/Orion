@@ -7,10 +7,9 @@ import java.util.regex.Pattern;
 
 /**
  * Redacts sensitive fields from log data maps to prevent credential/token leakage.
- * <p>
- * Default sensitive patterns: password, token, accessToken, refreshToken, secret,
- * authorization, apiKey, credential. Custom patterns can be added.
- * All matching is case-insensitive.
+ *
+ * <p>Default sensitive patterns: password, token, accessToken, refreshToken, secret, authorization,
+ * apiKey, credential. Custom patterns can be added. All matching is case-insensitive.
  */
 public final class SensitiveDataRedactor {
 
@@ -18,17 +17,21 @@ public final class SensitiveDataRedactor {
     public static final String REDACTED = "[REDACTED]";
 
     /** Default set of field name patterns considered sensitive. */
-    private static final Set<String> DEFAULT_SENSITIVE_PATTERNS = Set.of(
-            "password", "token", "accesstoken", "refreshtoken",
-            "secret", "authorization", "apikey", "credential"
-    );
+    private static final Set<String> DEFAULT_SENSITIVE_PATTERNS =
+            Set.of(
+                    "password",
+                    "token",
+                    "accesstoken",
+                    "refreshtoken",
+                    "secret",
+                    "authorization",
+                    "apikey",
+                    "credential");
 
     private final Set<String> sensitivePatterns;
     private final Pattern compiledPattern;
 
-    /**
-     * Creates a redactor with the default sensitive field patterns.
-     */
+    /** Creates a redactor with the default sensitive field patterns. */
     public SensitiveDataRedactor() {
         this(DEFAULT_SENSITIVE_PATTERNS);
     }
@@ -41,15 +44,13 @@ public final class SensitiveDataRedactor {
     public SensitiveDataRedactor(Set<String> patterns) {
         this.sensitivePatterns = Set.copyOf(patterns);
         // Build a single regex pattern for efficient matching
-        String regex = String.join("|", sensitivePatterns.stream()
-                .map(Pattern::quote)
-                .toList());
+        String regex = String.join("|", sensitivePatterns.stream().map(Pattern::quote).toList());
         this.compiledPattern = Pattern.compile(regex, Pattern.CASE_INSENSITIVE);
     }
 
     /**
-     * Returns a new map with sensitive field values replaced by {@value #REDACTED}.
-     * Non-sensitive fields are copied as-is. Null input returns an empty map.
+     * Returns a new map with sensitive field values replaced by {@value #REDACTED}. Non-sensitive
+     * fields are copied as-is. Null input returns an empty map.
      *
      * @param data the log data map (keys are field names, values are arbitrary)
      * @return a new map with sensitive values redacted
@@ -84,9 +85,7 @@ public final class SensitiveDataRedactor {
         return compiledPattern.matcher(fieldName).find();
     }
 
-    /**
-     * Returns the set of sensitive patterns this redactor uses.
-     */
+    /** Returns the set of sensitive patterns this redactor uses. */
     public Set<String> sensitivePatterns() {
         return sensitivePatterns;
     }

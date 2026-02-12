@@ -1,16 +1,16 @@
 package com.orion.security;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
-import static org.assertj.core.api.Assertions.assertThat;
-
 /**
  * Tests for BearerTokenExtractor (AC1: JWT Token Handling — token extraction).
  *
- * WHY: Verify correct extraction of JWT from "Bearer xxx" Authorization header,
- * and graceful handling of missing/malformed headers.
+ * <p>WHY: Verify correct extraction of JWT from "Bearer xxx" Authorization header, and graceful
+ * handling of missing/malformed headers.
  */
 @DisplayName("US-01-04 AC1: BearerTokenExtractor")
 class BearerTokenExtractorTest {

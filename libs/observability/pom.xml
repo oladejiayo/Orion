@@ -1,84 +1,80 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0"
-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
-    <modelVersion>4.0.0</modelVersion>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
 
-    <parent>
-        <groupId>com.orion</groupId>
-        <artifactId>orion-platform</artifactId>
-        <version>0.0.1-SNAPSHOT</version>
-        <relativePath>../../pom.xml</relativePath>
-    </parent>
+  <parent>
+    <groupId>com.orion</groupId>
+    <artifactId>orion-platform</artifactId>
+    <version>0.0.1-SNAPSHOT</version>
+    <relativePath>../../pom.xml</relativePath>
+  </parent>
 
-    <artifactId>orion-observability</artifactId>
-    <name>Orion :: Libs :: Observability</name>
-    <description>
-        Shared observability primitives — correlation context propagation, structured logging
+  <artifactId>orion-observability</artifactId>
+  <name>Orion :: Libs :: Observability</name>
+  <description>Shared observability primitives — correlation context propagation, structured logging
         helpers, distributed tracing (OpenTelemetry), metrics (Micrometer), and health check
-        abstractions. Pure domain library — no Spring dependency.
-    </description>
+        abstractions. Pure domain library — no Spring dependency.</description>
 
-    <dependencies>
-        <!-- ==================== Logging ==================== -->
-        <!-- SLF4J API — logging facade with MDC for correlation context propagation -->
-        <dependency>
-            <groupId>org.slf4j</groupId>
-            <artifactId>slf4j-api</artifactId>
-        </dependency>
+  <dependencies>
+    <!-- ==================== Logging ==================== -->
+    <!-- SLF4J API — logging facade with MDC for correlation context propagation -->
+    <dependency>
+      <groupId>org.slf4j</groupId>
+      <artifactId>slf4j-api</artifactId>
+    </dependency>
 
-        <!-- ==================== Metrics ==================== -->
-        <!-- Micrometer — metrics facade supporting Prometheus, CloudWatch, Datadog -->
-        <dependency>
-            <groupId>io.micrometer</groupId>
-            <artifactId>micrometer-core</artifactId>
-            <version>${micrometer.version}</version>
-        </dependency>
+    <!-- ==================== Metrics ==================== -->
+    <!-- Micrometer — metrics facade supporting Prometheus, CloudWatch, Datadog -->
+    <dependency>
+      <groupId>io.micrometer</groupId>
+      <artifactId>micrometer-core</artifactId>
+      <version>${micrometer.version}</version>
+    </dependency>
 
-        <!-- ==================== Tracing ==================== -->
-        <!-- OpenTelemetry API — tracing interface; SDK configured by services at boot time -->
-        <dependency>
-            <groupId>io.opentelemetry</groupId>
-            <artifactId>opentelemetry-api</artifactId>
-            <version>${opentelemetry.version}</version>
-        </dependency>
+    <!-- ==================== Tracing ==================== -->
+    <!-- OpenTelemetry API — tracing interface; SDK configured by services at boot time -->
+    <dependency>
+      <groupId>io.opentelemetry</groupId>
+      <artifactId>opentelemetry-api</artifactId>
+      <version>${opentelemetry.version}</version>
+    </dependency>
 
-        <!-- ==================== Test dependencies ==================== -->
-        <dependency>
-            <groupId>org.junit.jupiter</groupId>
-            <artifactId>junit-jupiter</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.assertj</groupId>
-            <artifactId>assertj-core</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <!-- Logback for test-time SLF4J backend (MDC tests need a real implementation) -->
-        <dependency>
-            <groupId>ch.qos.logback</groupId>
-            <artifactId>logback-classic</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <!-- Micrometer test support for metric assertions -->
-        <dependency>
-            <groupId>io.micrometer</groupId>
-            <artifactId>micrometer-test</artifactId>
-            <version>${micrometer.version}</version>
-            <scope>test</scope>
-        </dependency>
-        <!-- OpenTelemetry testing SDK for trace assertions -->
-        <dependency>
-            <groupId>io.opentelemetry</groupId>
-            <artifactId>opentelemetry-sdk-testing</artifactId>
-            <version>${opentelemetry.version}</version>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>io.opentelemetry</groupId>
-            <artifactId>opentelemetry-sdk</artifactId>
-            <version>${opentelemetry.version}</version>
-            <scope>test</scope>
-        </dependency>
-    </dependencies>
+    <!-- ==================== Test dependencies ==================== -->
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.assertj</groupId>
+      <artifactId>assertj-core</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <!-- Logback for test-time SLF4J backend (MDC tests need a real implementation) -->
+    <dependency>
+      <groupId>ch.qos.logback</groupId>
+      <artifactId>logback-classic</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <!-- Micrometer test support for metric assertions -->
+    <dependency>
+      <groupId>io.micrometer</groupId>
+      <artifactId>micrometer-test</artifactId>
+      <version>${micrometer.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <!-- OpenTelemetry testing SDK for trace assertions -->
+    <dependency>
+      <groupId>io.opentelemetry</groupId>
+      <artifactId>opentelemetry-sdk-testing</artifactId>
+      <version>${opentelemetry.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>io.opentelemetry</groupId>
+      <artifactId>opentelemetry-sdk</artifactId>
+      <version>${opentelemetry.version}</version>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
 </project>

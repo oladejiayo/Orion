@@ -618,6 +618,100 @@ flowchart TD
 
 ---
 
+### ✅ US-01-08: Setup Code Quality Tools and Standards
+
+**📅 Implemented:** 2026-02-12
+**📁 Location:** `build-tools/`, `.githooks/`, `.vscode/`, root `pom.xml`
+
+#### What Did We Build?
+
+We set up the **automatic quality police** — tools that check every developer's code for style problems, format inconsistencies, and build configuration mistakes, catching them *before* they reach the main codebase.
+
+Think of it like having automatic spell-check and grammar-check turned on for your entire writing team. Nobody can submit a document with typos because the system catches them first.
+
+#### Why Do We Need This?
+
+Imagine 20 chefs sharing one kitchen. Without rules:
+
+- Chef A uses metric measurements, Chef B uses imperial
+- Chef A labels jars in English, Chef B in French
+- Some chefs clean up, others leave messes
+
+Pretty soon the kitchen is chaos. **Code quality tools are the kitchen rules** — everyone formats code the same way, names things consistently, and follows the same conventions. This prevents merge conflicts, makes code reviews faster, and keeps the codebase readable for years.
+
+#### The Parts We Created
+
+| File / Folder | What It Is | Simple Explanation |
+|---|---|---|
+| `build-tools/checkstyle.xml` | Style rule book | The "dress code" for Java code — 120-char line length, naming rules, import rules, brace style |
+| `build-tools/checkstyle-suppressions.xml` | Exception list | "These people don't need to follow the dress code" — for generated code and test flexibility |
+| `.githooks/pre-commit` | Format guard | A bouncer that checks "is your code formatted?" before allowing a commit |
+| `.githooks/commit-msg` | Message validator | Checks that commit messages follow `type(scope): subject` format |
+| `.githooks/README.md` | Setup instructions | "How to turn on the bouncer" — one-time setup command |
+| `.vscode/settings.json` | Editor settings | Auto-format on save, Java settings, search exclusions |
+| `.vscode/extensions.json` | Extension recommendations | "Install these VS Code extensions" prompt for new developers |
+| `pom.xml` (updated) | Plugin config | Added Checkstyle, Spotless (auto-formatter), and Enforcer (version checker) plugins |
+| `.editorconfig` (updated) | Editor rules | Added proto file section (2-space indent) |
+| `.gitignore` (updated) | Git rules | Whitelisted VS Code shared settings so they're committed to Git |
+
+#### How It Works (The Flow)
+
+```mermaid
+flowchart TD
+    A["👩‍💻 Developer writes Java code"] --> B{"✏️ Save file in VS Code"}
+    B --> C["🔄 Auto-format on save\n<i>Google Java Format</i>"]
+    C --> D["💾 git commit -m 'feat(rfq): add quote logic'"]
+    D --> E{"🚪 Pre-commit hook"}
+    E -->|"Code formatted?"| F{"📝 Commit-msg hook"}
+    E -->|"❌ Not formatted"| G["⚠️ Rejected!\nRun: mvnw spotless:apply"]
+    F -->|"Valid message?"| H["✅ Commit accepted!"]
+    F -->|"❌ Bad format"| I["⚠️ Rejected!\nUse: type(scope): subject"]
+    H --> J["🔨 Maven build"]
+    J --> K["🛡️ Enforcer checks\nJava 21? Maven 3.9?"]
+    K --> L["📏 Checkstyle validates\nNaming, imports, style"]
+    L --> M["✅ Build passes!\n449 tests green"]
+
+    style A fill:#fff3e0,stroke:#e65100,color:#bf360c
+    style C fill:#e3f2fd,stroke:#1976d2,color:#0d47a1
+    style E fill:#fce4ec,stroke:#c62828,color:#b71c1c
+    style F fill:#fce4ec,stroke:#c62828,color:#b71c1c
+    style H fill:#e8f5e9,stroke:#388e3c,color:#1b5e20
+    style K fill:#e3f2fd,stroke:#1976d2,color:#0d47a1
+    style L fill:#e3f2fd,stroke:#1976d2,color:#0d47a1
+    style M fill:#e8f5e9,stroke:#388e3c,color:#1b5e20
+    style G fill:#ffebee,stroke:#c62828,color:#b71c1c
+    style I fill:#ffebee,stroke:#c62828,color:#b71c1c
+```
+
+#### Conventional Commit Types
+
+| Type | When to Use | Example |
+|------|-------------|---------|
+| `feat` | New feature | `feat(rfq): add quote timeout logic` |
+| `fix` | Bug fix | `fix(auth): handle expired JWT tokens` |
+| `docs` | Documentation only | `docs: update API conventions` |
+| `style` | Formatting (no logic change) | `style: apply Spotless formatting` |
+| `refactor` | Code restructuring | `refactor(trade): extract validation` |
+| `test` | Tests only | `test(rfq): add quote collection tests` |
+| `chore` | Maintenance | `chore: update dependency versions` |
+| `ci` | CI pipeline changes | `ci: add coverage reporting` |
+| `build` | Build system changes | `build: add Checkstyle plugin` |
+
+#### Key Concepts
+
+| Concept | Simple Explanation |
+|---------|-------------------|
+| **Checkstyle** | A "grammar police" for Java code. It reads rules from an XML file and flags violations — like a spell-checker but for coding style. Runs during the Maven build. |
+| **Spotless** | An automatic code formatter. Where Checkstyle *complains* about bad formatting, Spotless *fixes* it automatically. Like autocorrect on your phone. |
+| **Google Java Format** | A specific formatting style used by Google. Spotless applies it to all Java files. Everyone's code looks identical regardless of personal preferences. |
+| **Maven Enforcer** | A "bouncer at the door" plugin. Checks: "Are you using Java 21? Are you using Maven 3.9? Any duplicate dependencies?" If not, the build fails immediately. |
+| **Git Hooks** | Scripts that run automatically before/after Git operations. Our pre-commit hook checks formatting; our commit-msg hook checks the message format. Like a checkpoint before entering a building. |
+| **Conventional Commits** | A standardized commit message format: `type(scope): description`. Enables automated changelogs and makes Git history readable. Like standardizing how everyone labels their mail. |
+| **EditorConfig** | A simple file that tells ALL editors (VS Code, IntelliJ, Vim) to use the same settings — tabs vs spaces, line endings, charset. Works across IDEs without plugins. |
+| **`.githooks/` directory** | Unlike default `.git/hooks/` (which is not tracked by Git), `.githooks/` is committed to the repo. Developers activate it once with `git config core.hooksPath .githooks`. |
+
+---
+
 ## 📖 Glossary
 
 *(see updated glossary below)*
@@ -628,9 +722,9 @@ flowchart TD
 
 | Story | What It Will Add |
 |---|---|
-| US-01-08 | Code quality tools — Checkstyle, SpotBugs, enforcer rules |
 | US-01-09 | Base service template — Spring Boot archetype with shared config |
+| US-01-10 | Database migrations — Flyway/Liquibase for schema versioning |
 
 ---
 
-*Last updated after US-01-07*
+*Last updated after US-01-08*

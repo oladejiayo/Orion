@@ -4,11 +4,11 @@ import java.util.List;
 
 /**
  * Result of validating an {@link OrionSecurityContext}.
- * <p>
- * WHY a record: immutable, clear API — either valid (empty errors) or invalid (errors list).
+ *
+ * <p>WHY a record: immutable, clear API — either valid (empty errors) or invalid (errors list).
  * Same pattern as {@code ValidationResult} in event-model.
  *
- * @param valid  whether the context passed all validation checks
+ * @param valid whether the context passed all validation checks
  * @param errors list of validation error messages (empty if valid)
  */
 public record SecurityValidationResult(boolean valid, List<String> errors) {

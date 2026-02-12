@@ -1,15 +1,14 @@
 package com.orion.observability.testing;
 
 import com.orion.observability.CorrelationContext;
-
 import java.util.UUID;
 
 /**
  * Test factory for creating {@link CorrelationContext} instances with sensible defaults.
- * <p>
- * Placed in {@code src/main/java} so other modules can import it as a regular dependency
- * in their test scope. All values are deterministic for test reproducibility, but
- * convenience methods generate random UUIDs when needed.
+ *
+ * <p>Placed in {@code src/main/java} so other modules can import it as a regular dependency in
+ * their test scope. All values are deterministic for test reproducibility, but convenience methods
+ * generate random UUIDs when needed.
  */
 public final class TestCorrelationContextFactory {
 
@@ -29,9 +28,7 @@ public final class TestCorrelationContextFactory {
         // Utility class — no instantiation
     }
 
-    /**
-     * Creates a fully-populated correlation context with all default values.
-     */
+    /** Creates a fully-populated correlation context with all default values. */
     public static CorrelationContext createDefault() {
         return new CorrelationContext(
                 DEFAULT_CORRELATION_ID,
@@ -39,13 +36,10 @@ public final class TestCorrelationContextFactory {
                 DEFAULT_USER_ID,
                 DEFAULT_REQUEST_ID,
                 null,
-                null
-        );
+                null);
     }
 
-    /**
-     * Creates a correlation context with a random correlation ID and all other defaults.
-     */
+    /** Creates a correlation context with a random correlation ID and all other defaults. */
     public static CorrelationContext createRandom() {
         return new CorrelationContext(
                 UUID.randomUUID().toString(),
@@ -53,8 +47,7 @@ public final class TestCorrelationContextFactory {
                 DEFAULT_USER_ID,
                 UUID.randomUUID().toString(),
                 null,
-                null
-        );
+                null);
     }
 
     /**
@@ -64,13 +57,7 @@ public final class TestCorrelationContextFactory {
      */
     public static CorrelationContext forTenant(String tenantId) {
         return new CorrelationContext(
-                DEFAULT_CORRELATION_ID,
-                tenantId,
-                DEFAULT_USER_ID,
-                DEFAULT_REQUEST_ID,
-                null,
-                null
-        );
+                DEFAULT_CORRELATION_ID, tenantId, DEFAULT_USER_ID, DEFAULT_REQUEST_ID, null, null);
     }
 
     /**
@@ -80,20 +67,12 @@ public final class TestCorrelationContextFactory {
      */
     public static CorrelationContext forUser(String userId) {
         return new CorrelationContext(
-                DEFAULT_CORRELATION_ID,
-                DEFAULT_TENANT_ID,
-                userId,
-                DEFAULT_REQUEST_ID,
-                null,
-                null
-        );
+                DEFAULT_CORRELATION_ID, DEFAULT_TENANT_ID, userId, DEFAULT_REQUEST_ID, null, null);
     }
 
-    /**
-     * Creates a fully customized correlation context.
-     */
-    public static CorrelationContext create(String correlationId, String tenantId,
-                                           String userId, String requestId) {
+    /** Creates a fully customized correlation context. */
+    public static CorrelationContext create(
+            String correlationId, String tenantId, String userId, String requestId) {
         return new CorrelationContext(correlationId, tenantId, userId, requestId, null, null);
     }
 }

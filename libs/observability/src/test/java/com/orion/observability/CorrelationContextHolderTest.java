@@ -1,19 +1,18 @@
 package com.orion.observability;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
+import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.slf4j.MDC;
 
-import java.util.concurrent.atomic.AtomicReference;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-
 /**
- * Tests for {@link CorrelationContextHolder} — validates ThreadLocal storage,
- * MDC bridge, context clearing, and scoped execution.
+ * Tests for {@link CorrelationContextHolder} — validates ThreadLocal storage, MDC bridge, context
+ * clearing, and scoped execution.
  */
 @DisplayName("CorrelationContextHolder")
 class CorrelationContextHolderTest {
@@ -69,7 +68,9 @@ class CorrelationContextHolderTest {
         @Test
         @DisplayName("should populate MDC keys when context is set")
         void shouldPopulateMdcOnSet() {
-            var ctx = new CorrelationContext("corr-1", "tenant-1", "user-1", "req-1", "span-1", "trace-1");
+            var ctx =
+                    new CorrelationContext(
+                            "corr-1", "tenant-1", "user-1", "req-1", "span-1", "trace-1");
             CorrelationContextHolder.set(ctx);
 
             assertThat(MDC.get("correlationId")).isEqualTo("corr-1");
@@ -121,17 +122,22 @@ class CorrelationContextHolderTest {
             CorrelationContextHolder.set(outer);
 
             AtomicReference<String> capturedCorrelationId = new AtomicReference<>();
-            CorrelationContextHolder.runWithContext(inner, () -> {
-                capturedCorrelationId.set(
-                        CorrelationContextHolder.get().map(CorrelationContext::correlationId).orElse(null));
-            });
+            CorrelationContextHolder.runWithContext(
+                    inner,
+                    () -> {
+                        capturedCorrelationId.set(
+                                CorrelationContextHolder.get()
+                                        .map(CorrelationContext::correlationId)
+                                        .orElse(null));
+                    });
 
             // Inner context was active during runnable
             assertThat(capturedCorrelationId.get()).isEqualTo("inner-corr");
 
             // Outer context is restored
             assertThat(CorrelationContextHolder.get()).isPresent();
-            assertThat(CorrelationContextHolder.get().get().correlationId()).isEqualTo("outer-corr");
+            assertThat(CorrelationContextHolder.get().get().correlationId())
+                    .isEqualTo("outer-corr");
         }
 
         @Test
@@ -139,9 +145,11 @@ class CorrelationContextHolderTest {
         void shouldClearWhenNoPreviousContext() {
             var ctx = new CorrelationContext("temp-corr", "tenant-1", null, null, null, null);
 
-            CorrelationContextHolder.runWithContext(ctx, () -> {
-                assertThat(CorrelationContextHolder.get()).isPresent();
-            });
+            CorrelationContextHolder.runWithContext(
+                    ctx,
+                    () -> {
+                        assertThat(CorrelationContextHolder.get()).isPresent();
+                    });
 
             assertThat(CorrelationContextHolder.get()).isEmpty();
         }
@@ -155,16 +163,19 @@ class CorrelationContextHolderTest {
             CorrelationContextHolder.set(outer);
 
             try {
-                CorrelationContextHolder.runWithContext(inner, () -> {
-                    throw new RuntimeException("boom");
-                });
+                CorrelationContextHolder.runWithContext(
+                        inner,
+                        () -> {
+                            throw new RuntimeException("boom");
+                        });
             } catch (RuntimeException ignored) {
                 // Expected
             }
 
             // Outer context is restored despite exception
             assertThat(CorrelationContextHolder.get()).isPresent();
-            assertThat(CorrelationContextHolder.get().get().correlationId()).isEqualTo("outer-corr");
+            assertThat(CorrelationContextHolder.get().get().correlationId())
+                    .isEqualTo("outer-corr");
         }
     }
 
@@ -179,9 +190,12 @@ class CorrelationContextHolderTest {
             CorrelationContextHolder.set(ctx);
 
             AtomicReference<Boolean> otherThreadHasContext = new AtomicReference<>();
-            Thread other = new Thread(() -> {
-                otherThreadHasContext.set(CorrelationContextHolder.get().isPresent());
-            });
+            Thread other =
+                    new Thread(
+                            () -> {
+                                otherThreadHasContext.set(
+                                        CorrelationContextHolder.get().isPresent());
+                            });
             other.start();
             other.join();
 

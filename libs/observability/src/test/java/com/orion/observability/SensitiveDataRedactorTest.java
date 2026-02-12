@@ -1,18 +1,17 @@
 package com.orion.observability;
 
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Nested;
-import org.junit.jupiter.api.Test;
+import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
-
-import static org.assertj.core.api.Assertions.assertThat;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Test;
 
 /**
- * Tests for {@link SensitiveDataRedactor} — validates field redaction,
- * case insensitivity, custom patterns, and edge cases.
+ * Tests for {@link SensitiveDataRedactor} — validates field redaction, case insensitivity, custom
+ * patterns, and edge cases.
  */
 @DisplayName("SensitiveDataRedactor")
 class SensitiveDataRedactorTest {
@@ -37,59 +36,66 @@ class SensitiveDataRedactorTest {
         @DisplayName("should redact 'token' field")
         void shouldRedactToken() {
             Map<String, Object> data = Map.of("token", "eyJhbGciOi...");
-            assertThat(redactor.redact(data).get("token")).isEqualTo(SensitiveDataRedactor.REDACTED);
+            assertThat(redactor.redact(data).get("token"))
+                    .isEqualTo(SensitiveDataRedactor.REDACTED);
         }
 
         @Test
         @DisplayName("should redact 'accessToken' field")
         void shouldRedactAccessToken() {
             Map<String, Object> data = Map.of("accessToken", "abc123");
-            assertThat(redactor.redact(data).get("accessToken")).isEqualTo(SensitiveDataRedactor.REDACTED);
+            assertThat(redactor.redact(data).get("accessToken"))
+                    .isEqualTo(SensitiveDataRedactor.REDACTED);
         }
 
         @Test
         @DisplayName("should redact 'refreshToken' field")
         void shouldRedactRefreshToken() {
             Map<String, Object> data = Map.of("refreshToken", "xyz789");
-            assertThat(redactor.redact(data).get("refreshToken")).isEqualTo(SensitiveDataRedactor.REDACTED);
+            assertThat(redactor.redact(data).get("refreshToken"))
+                    .isEqualTo(SensitiveDataRedactor.REDACTED);
         }
 
         @Test
         @DisplayName("should redact 'secret' field")
         void shouldRedactSecret() {
             Map<String, Object> data = Map.of("secret", "my-secret-value");
-            assertThat(redactor.redact(data).get("secret")).isEqualTo(SensitiveDataRedactor.REDACTED);
+            assertThat(redactor.redact(data).get("secret"))
+                    .isEqualTo(SensitiveDataRedactor.REDACTED);
         }
 
         @Test
         @DisplayName("should redact 'authorization' field")
         void shouldRedactAuthorization() {
             Map<String, Object> data = Map.of("authorization", "Bearer eyJ...");
-            assertThat(redactor.redact(data).get("authorization")).isEqualTo(SensitiveDataRedactor.REDACTED);
+            assertThat(redactor.redact(data).get("authorization"))
+                    .isEqualTo(SensitiveDataRedactor.REDACTED);
         }
 
         @Test
         @DisplayName("should redact 'apiKey' field")
         void shouldRedactApiKey() {
             Map<String, Object> data = Map.of("apiKey", "AKIAIOSFODNN7");
-            assertThat(redactor.redact(data).get("apiKey")).isEqualTo(SensitiveDataRedactor.REDACTED);
+            assertThat(redactor.redact(data).get("apiKey"))
+                    .isEqualTo(SensitiveDataRedactor.REDACTED);
         }
 
         @Test
         @DisplayName("should redact 'credential' field")
         void shouldRedactCredential() {
             Map<String, Object> data = Map.of("credential", "cred-value");
-            assertThat(redactor.redact(data).get("credential")).isEqualTo(SensitiveDataRedactor.REDACTED);
+            assertThat(redactor.redact(data).get("credential"))
+                    .isEqualTo(SensitiveDataRedactor.REDACTED);
         }
 
         @Test
         @DisplayName("should preserve non-sensitive fields")
         void shouldPreserveNonSensitiveFields() {
-            Map<String, Object> data = Map.of(
-                    "tradeId", "trade-123",
-                    "amount", 1000,
-                    "currency", "USD"
-            );
+            Map<String, Object> data =
+                    Map.of(
+                            "tradeId", "trade-123",
+                            "amount", 1000,
+                            "currency", "USD");
             Map<String, Object> result = redactor.redact(data);
 
             assertThat(result.get("tradeId")).isEqualTo("trade-123");
@@ -121,7 +127,8 @@ class SensitiveDataRedactorTest {
         @DisplayName("should match substrings (e.g., 'userPassword' contains 'password')")
         void shouldMatchSubstrings() {
             Map<String, Object> data = Map.of("userPassword", "my-pass");
-            assertThat(redactor.redact(data).get("userPassword")).isEqualTo(SensitiveDataRedactor.REDACTED);
+            assertThat(redactor.redact(data).get("userPassword"))
+                    .isEqualTo(SensitiveDataRedactor.REDACTED);
         }
     }
 
@@ -195,16 +202,18 @@ class SensitiveDataRedactorTest {
         void shouldUseCustomPatterns() {
             var custom = new SensitiveDataRedactor(Set.of("ssn", "creditcard"));
 
-            Map<String, Object> data = Map.of(
-                    "ssn", "123-45-6789",
-                    "creditcard", "4111-1111-1111-1111",
-                    "password", "visible"  // 'password' is NOT in custom patterns
-            );
+            Map<String, Object> data =
+                    Map.of(
+                            "ssn", "123-45-6789",
+                            "creditcard", "4111-1111-1111-1111",
+                            "password", "visible" // 'password' is NOT in custom patterns
+                            );
             Map<String, Object> result = custom.redact(data);
 
             assertThat(result.get("ssn")).isEqualTo(SensitiveDataRedactor.REDACTED);
             assertThat(result.get("creditcard")).isEqualTo(SensitiveDataRedactor.REDACTED);
-            assertThat(result.get("password")).isEqualTo("visible"); // Not redacted with custom patterns
+            assertThat(result.get("password"))
+                    .isEqualTo("visible"); // Not redacted with custom patterns
         }
 
         @Test

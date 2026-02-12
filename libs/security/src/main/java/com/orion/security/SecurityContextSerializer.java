@@ -2,15 +2,14 @@ package com.orion.security;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-
 import java.util.Base64;
 
 /**
- * Serializes and deserializes {@link OrionSecurityContext} for
- * service-to-service propagation (e.g., gRPC metadata).
- * <p>
- * WHY JSON + Base64: gRPC metadata values are strings. We serialize the security
- * context to JSON, then Base64-encode it for safe transport in metadata headers.
+ * Serializes and deserializes {@link OrionSecurityContext} for service-to-service propagation
+ * (e.g., gRPC metadata).
+ *
+ * <p>WHY JSON + Base64: gRPC metadata values are strings. We serialize the security context to
+ * JSON, then Base64-encode it for safe transport in metadata headers.
  */
 public final class SecurityContextSerializer {
 
@@ -52,9 +51,7 @@ public final class SecurityContextSerializer {
         }
     }
 
-    /**
-     * Exception thrown when security context serialization/deserialization fails.
-     */
+    /** Exception thrown when security context serialization/deserialization fails. */
     public static class SecuritySerializationException extends RuntimeException {
         public SecuritySerializationException(String message, Throwable cause) {
             super(message, cause);

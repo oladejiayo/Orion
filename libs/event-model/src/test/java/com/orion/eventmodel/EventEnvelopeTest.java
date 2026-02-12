@@ -1,25 +1,23 @@
 package com.orion.eventmodel;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
+import java.time.Instant;
+import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
-import java.time.Instant;
-import java.util.UUID;
-
-import static org.assertj.core.api.Assertions.assertThat;
-
 /**
  * Tests for the EventEnvelope and EventEntity records (AC1 + AC2).
  *
- * WHY: Verify that the canonical event envelope holds all required fields
- * and that Java records provide correct equality, immutability, and toString.
+ * <p>WHY: Verify that the canonical event envelope holds all required fields and that Java records
+ * provide correct equality, immutability, and toString.
  */
 @DisplayName("US-01-03 AC1/AC2: EventEnvelope & EventEntity")
 class EventEnvelopeTest {
 
-    private static final EventEntity SAMPLE_ENTITY =
-            new EventEntity("Trade", "trade-123", 1);
+    private static final EventEntity SAMPLE_ENTITY = new EventEntity("Trade", "trade-123", 1);
 
     private static EventEnvelope<String> sampleEnvelope() {
         return new EventEnvelope<>(
@@ -32,8 +30,7 @@ class EventEnvelopeTest {
                 UUID.randomUUID().toString(),
                 "cmd-456",
                 SAMPLE_ENTITY,
-                "sample-payload"
-        );
+                "sample-payload");
     }
 
     @Nested
@@ -78,11 +75,18 @@ class EventEnvelopeTest {
             var now = Instant.now();
             var corrId = UUID.randomUUID().toString();
 
-            var event = new EventEnvelope<>(
-                    id, "TradeExecuted", 1, now,
-                    "execution-service", "tenant-001",
-                    corrId, "cmd-001", SAMPLE_ENTITY, "payload"
-            );
+            var event =
+                    new EventEnvelope<>(
+                            id,
+                            "TradeExecuted",
+                            1,
+                            now,
+                            "execution-service",
+                            "tenant-001",
+                            corrId,
+                            "cmd-001",
+                            SAMPLE_ENTITY,
+                            "payload");
 
             assertThat(event.eventId()).isEqualTo(id);
             assertThat(event.eventType()).isEqualTo("TradeExecuted");
@@ -101,11 +105,18 @@ class EventEnvelopeTest {
         void supportsGenericPayload() {
             record TradePayload(double price, int quantity) {}
 
-            var event = new EventEnvelope<>(
-                    "id", "TradeExecuted", 1, Instant.now(),
-                    "svc", "t1", "c1", "cmd1", SAMPLE_ENTITY,
-                    new TradePayload(99.5, 100)
-            );
+            var event =
+                    new EventEnvelope<>(
+                            "id",
+                            "TradeExecuted",
+                            1,
+                            Instant.now(),
+                            "svc",
+                            "t1",
+                            "c1",
+                            "cmd1",
+                            SAMPLE_ENTITY,
+                            new TradePayload(99.5, 100));
 
             assertThat(event.payload().price()).isEqualTo(99.5);
             assertThat(event.payload().quantity()).isEqualTo(100);

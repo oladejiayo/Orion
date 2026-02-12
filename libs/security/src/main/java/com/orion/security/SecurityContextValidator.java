@@ -2,9 +2,9 @@ package com.orion.security;
 
 /**
  * Validates that an {@link OrionSecurityContext} has all required fields populated.
- * <p>
- * WHY manual validation: same pattern as EventValidator — no annotation processing
- * dependency, returns all errors at once, and is fast.
+ *
+ * <p>WHY manual validation: same pattern as EventValidator — no annotation processing dependency,
+ * returns all errors at once, and is fast.
  */
 public final class SecurityContextValidator {
 
@@ -45,7 +45,9 @@ public final class SecurityContextValidator {
             errors.add("entitlements must not be null");
         }
 
-        return errors.isEmpty() ? SecurityValidationResult.ok() : SecurityValidationResult.fail(errors);
+        return errors.isEmpty()
+                ? SecurityValidationResult.ok()
+                : SecurityValidationResult.fail(errors);
     }
 
     private static boolean isBlank(String s) {

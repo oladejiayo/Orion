@@ -1,21 +1,21 @@
 package com.orion.observability;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-
 /**
- * Tests for {@link ObservabilityContext} record — validates construction
- * and required field validation.
+ * Tests for {@link ObservabilityContext} record — validates construction and required field
+ * validation.
  */
 @DisplayName("ObservabilityContext")
 class ObservabilityContextTest {
 
-    private final CorrelationContext correlation = new CorrelationContext(
-            "corr-001", "tenant-001", "user-001", "req-001", null, null);
+    private final CorrelationContext correlation =
+            new CorrelationContext("corr-001", "tenant-001", "user-001", "req-001", null, null);
 
     @Nested
     @DisplayName("Construction")

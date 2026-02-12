@@ -1,5 +1,7 @@
 package com.orion.grpc;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import com.orion.common.v1.CorrelationContext;
 import com.orion.common.v1.Decimal;
 import com.orion.common.v1.TenantContext;
@@ -19,11 +21,9 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
-import static org.assertj.core.api.Assertions.assertThat;
-
 /**
- * Verifies the generated Market Data service proto messages and service descriptor.
- * Tests cover snapshot requests, streaming subscriptions, market ticks, and order book depth.
+ * Verifies the generated Market Data service proto messages and service descriptor. Tests cover
+ * snapshot requests, streaming subscriptions, market ticks, and order book depth.
  */
 @DisplayName("Market Data Proto")
 class MarketDataProtoTest {
@@ -55,13 +55,14 @@ class MarketDataProtoTest {
         @Test
         @DisplayName("should build with instrument IDs and depth options")
         void shouldBuildWithInstruments() {
-            var req = SnapshotRequest.newBuilder()
-                    .addInstrumentIds("EUR/USD")
-                    .addInstrumentIds("GBP/USD")
-                    .addInstrumentIds("USD/JPY")
-                    .setIncludeDepth(true)
-                    .setDepthLevels(10)
-                    .build();
+            var req =
+                    SnapshotRequest.newBuilder()
+                            .addInstrumentIds("EUR/USD")
+                            .addInstrumentIds("GBP/USD")
+                            .addInstrumentIds("USD/JPY")
+                            .setIncludeDepth(true)
+                            .setDepthLevels(10)
+                            .build();
 
             assertThat(req.getInstrumentIdsList()).containsExactly("EUR/USD", "GBP/USD", "USD/JPY");
             assertThat(req.getIncludeDepth()).isTrue();
@@ -77,27 +78,32 @@ class MarketDataProtoTest {
         @Test
         @DisplayName("should build full snapshot with order book depth")
         void shouldBuildWithDepth() {
-            var snapshot = MarketSnapshot.newBuilder()
-                    .setInstrumentId("EUR/USD")
-                    .setBid(decimal("1.0850"))
-                    .setAsk(decimal("1.0852"))
-                    .setMid(decimal("1.0851"))
-                    .setSpread(decimal("0.0002"))
-                    .setLastUpdate(Timestamp.newBuilder().setSeconds(1_700_000_000L))
-                    .setDepth(OrderBookDepth.newBuilder()
-                            .addBids(PriceLevel.newBuilder()
-                                    .setPrice(decimal("1.0850"))
-                                    .setQuantity(decimal("5000000"))
-                                    .setOrderCount(3))
-                            .addAsks(PriceLevel.newBuilder()
-                                    .setPrice(decimal("1.0852"))
-                                    .setQuantity(decimal("3000000"))
-                                    .setOrderCount(2)))
-                    .setQuality(DataQuality.newBuilder()
-                            .setIsStale(false)
-                            .setIsIndicative(false)
-                            .setSource("reuters"))
-                    .build();
+            var snapshot =
+                    MarketSnapshot.newBuilder()
+                            .setInstrumentId("EUR/USD")
+                            .setBid(decimal("1.0850"))
+                            .setAsk(decimal("1.0852"))
+                            .setMid(decimal("1.0851"))
+                            .setSpread(decimal("0.0002"))
+                            .setLastUpdate(Timestamp.newBuilder().setSeconds(1_700_000_000L))
+                            .setDepth(
+                                    OrderBookDepth.newBuilder()
+                                            .addBids(
+                                                    PriceLevel.newBuilder()
+                                                            .setPrice(decimal("1.0850"))
+                                                            .setQuantity(decimal("5000000"))
+                                                            .setOrderCount(3))
+                                            .addAsks(
+                                                    PriceLevel.newBuilder()
+                                                            .setPrice(decimal("1.0852"))
+                                                            .setQuantity(decimal("3000000"))
+                                                            .setOrderCount(2)))
+                            .setQuality(
+                                    DataQuality.newBuilder()
+                                            .setIsStale(false)
+                                            .setIsIndicative(false)
+                                            .setSource("reuters"))
+                            .build();
 
             assertThat(snapshot.getInstrumentId()).isEqualTo("EUR/USD");
             assertThat(snapshot.hasDepth()).isTrue();
@@ -115,19 +121,24 @@ class MarketDataProtoTest {
         @Test
         @DisplayName("should contain map of instrument snapshots")
         void shouldContainSnapshotMap() {
-            var response = SnapshotResponse.newBuilder()
-                    .putSnapshots("EUR/USD", MarketSnapshot.newBuilder()
-                            .setInstrumentId("EUR/USD")
-                            .setBid(decimal("1.0850"))
-                            .setAsk(decimal("1.0852"))
-                            .build())
-                    .putSnapshots("GBP/USD", MarketSnapshot.newBuilder()
-                            .setInstrumentId("GBP/USD")
-                            .setBid(decimal("1.2600"))
-                            .setAsk(decimal("1.2603"))
-                            .build())
-                    .setTimestamp(Timestamp.newBuilder().setSeconds(1_700_000_000L))
-                    .build();
+            var response =
+                    SnapshotResponse.newBuilder()
+                            .putSnapshots(
+                                    "EUR/USD",
+                                    MarketSnapshot.newBuilder()
+                                            .setInstrumentId("EUR/USD")
+                                            .setBid(decimal("1.0850"))
+                                            .setAsk(decimal("1.0852"))
+                                            .build())
+                            .putSnapshots(
+                                    "GBP/USD",
+                                    MarketSnapshot.newBuilder()
+                                            .setInstrumentId("GBP/USD")
+                                            .setBid(decimal("1.2600"))
+                                            .setAsk(decimal("1.2603"))
+                                            .build())
+                            .setTimestamp(Timestamp.newBuilder().setSeconds(1_700_000_000L))
+                            .build();
 
             assertThat(response.getSnapshotsMap()).hasSize(2);
             assertThat(response.getSnapshotsMap()).containsKey("EUR/USD");
@@ -142,16 +153,17 @@ class MarketDataProtoTest {
         @Test
         @DisplayName("should build tick with all fields")
         void shouldBuildTick() {
-            var tick = MarketTick.newBuilder()
-                    .setInstrumentId("EUR/USD")
-                    .setBid(decimal("1.0850"))
-                    .setAsk(decimal("1.0852"))
-                    .setMid(decimal("1.0851"))
-                    .setTimestamp(Timestamp.newBuilder().setSeconds(1_700_000_000L))
-                    .setSource("reuters")
-                    .setSequence(42L)
-                    .setQuality(DataQuality.newBuilder().setIsStale(false))
-                    .build();
+            var tick =
+                    MarketTick.newBuilder()
+                            .setInstrumentId("EUR/USD")
+                            .setBid(decimal("1.0850"))
+                            .setAsk(decimal("1.0852"))
+                            .setMid(decimal("1.0851"))
+                            .setTimestamp(Timestamp.newBuilder().setSeconds(1_700_000_000L))
+                            .setSource("reuters")
+                            .setSequence(42L)
+                            .setQuality(DataQuality.newBuilder().setIsStale(false))
+                            .build();
 
             assertThat(tick.getSource()).isEqualTo("reuters");
             assertThat(tick.getSequence()).isEqualTo(42L);
@@ -160,15 +172,19 @@ class MarketDataProtoTest {
         @Test
         @DisplayName("should serialize and deserialize correctly")
         void shouldRoundTrip() throws Exception {
-            var tick = MarketTick.newBuilder()
-                    .setInstrumentId("USD/JPY")
-                    .setBid(decimal("149.50"))
-                    .setAsk(decimal("149.53"))
-                    .setMid(decimal("149.515"))
-                    .setTimestamp(Timestamp.newBuilder().setSeconds(1_700_000_000L).setNanos(500_000))
-                    .setSource("bloomberg")
-                    .setSequence(100L)
-                    .build();
+            var tick =
+                    MarketTick.newBuilder()
+                            .setInstrumentId("USD/JPY")
+                            .setBid(decimal("149.50"))
+                            .setAsk(decimal("149.53"))
+                            .setMid(decimal("149.515"))
+                            .setTimestamp(
+                                    Timestamp.newBuilder()
+                                            .setSeconds(1_700_000_000L)
+                                            .setNanos(500_000))
+                            .setSource("bloomberg")
+                            .setSequence(100L)
+                            .build();
 
             var parsed = MarketTick.parseFrom(tick.toByteArray());
             assertThat(parsed).isEqualTo(tick);
@@ -182,12 +198,14 @@ class MarketDataProtoTest {
         @Test
         @DisplayName("should build subscription with context")
         void shouldBuildWithContext() {
-            var sub = TickSubscription.newBuilder()
-                    .addInstrumentIds("EUR/USD")
-                    .addInstrumentIds("GBP/USD")
-                    .setTenant(TenantContext.newBuilder().setTenantId("acme-corp"))
-                    .setCorrelation(CorrelationContext.newBuilder().setCorrelationId("corr-123"))
-                    .build();
+            var sub =
+                    TickSubscription.newBuilder()
+                            .addInstrumentIds("EUR/USD")
+                            .addInstrumentIds("GBP/USD")
+                            .setTenant(TenantContext.newBuilder().setTenantId("acme-corp"))
+                            .setCorrelation(
+                                    CorrelationContext.newBuilder().setCorrelationId("corr-123"))
+                            .build();
 
             assertThat(sub.getInstrumentIdsList()).containsExactly("EUR/USD", "GBP/USD");
             assertThat(sub.getTenant().getTenantId()).isEqualTo("acme-corp");
@@ -201,12 +219,13 @@ class MarketDataProtoTest {
         @Test
         @DisplayName("should build request with time range")
         void shouldBuildRequest() {
-            var req = HistoricalTicksRequest.newBuilder()
-                    .setInstrumentId("EUR/USD")
-                    .setStartTime(Timestamp.newBuilder().setSeconds(1_699_990_000L))
-                    .setEndTime(Timestamp.newBuilder().setSeconds(1_700_000_000L))
-                    .setMaxResults(500)
-                    .build();
+            var req =
+                    HistoricalTicksRequest.newBuilder()
+                            .setInstrumentId("EUR/USD")
+                            .setStartTime(Timestamp.newBuilder().setSeconds(1_699_990_000L))
+                            .setEndTime(Timestamp.newBuilder().setSeconds(1_700_000_000L))
+                            .setMaxResults(500)
+                            .build();
 
             assertThat(req.getInstrumentId()).isEqualTo("EUR/USD");
             assertThat(req.hasMaxResults()).isTrue();
@@ -216,14 +235,16 @@ class MarketDataProtoTest {
         @Test
         @DisplayName("should build response with ticks and has_more flag")
         void shouldBuildResponse() {
-            var resp = HistoricalTicksResponse.newBuilder()
-                    .addTicks(MarketTick.newBuilder()
-                            .setInstrumentId("EUR/USD")
-                            .setBid(decimal("1.0850"))
-                            .setAsk(decimal("1.0852"))
-                            .build())
-                    .setHasMore(true)
-                    .build();
+            var resp =
+                    HistoricalTicksResponse.newBuilder()
+                            .addTicks(
+                                    MarketTick.newBuilder()
+                                            .setInstrumentId("EUR/USD")
+                                            .setBid(decimal("1.0850"))
+                                            .setAsk(decimal("1.0852"))
+                                            .build())
+                            .setHasMore(true)
+                            .build();
 
             assertThat(resp.getTicksList()).hasSize(1);
             assertThat(resp.getHasMore()).isTrue();

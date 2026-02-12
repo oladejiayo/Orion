@@ -1,20 +1,18 @@
 package com.orion.observability;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
 import com.orion.observability.testing.InMemoryHealthCheck;
+import java.util.concurrent.CompletableFuture;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.TimeUnit;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-
 /**
- * Tests for {@link HealthCheckRegistry} — validates registration, deregistration,
- * concurrent check execution, timeout handling, and overall status aggregation.
+ * Tests for {@link HealthCheckRegistry} — validates registration, deregistration, concurrent check
+ * execution, timeout handling, and overall status aggregation.
  */
 @DisplayName("HealthCheckRegistry")
 class HealthCheckRegistryTest {
@@ -135,15 +133,15 @@ class HealthCheckRegistryTest {
 
             assertThat(result.status()).isEqualTo(HealthStatus.HEALTHY);
             assertThat(result.checks()).hasSize(3);
-            assertThat(result.checks().values())
-                    .allMatch(h -> h.status() == HealthStatus.HEALTHY);
+            assertThat(result.checks().values()).allMatch(h -> h.status() == HealthStatus.HEALTHY);
         }
 
         @Test
         @DisplayName("should return UNHEALTHY when any check fails")
         void shouldReturnUnhealthyWhenAnyFails() {
             registry.register("postgres", new InMemoryHealthCheck("postgres"));
-            registry.register("redis", new InMemoryHealthCheck("redis").setUnhealthy("connection refused"));
+            registry.register(
+                    "redis", new InMemoryHealthCheck("redis").setUnhealthy("connection refused"));
 
             HealthResult result = registry.checkAll();
 
@@ -157,7 +155,8 @@ class HealthCheckRegistryTest {
         @DisplayName("should return DEGRADED when a check is degraded but none are unhealthy")
         void shouldReturnDegradedWhenDegraded() {
             registry.register("postgres", new InMemoryHealthCheck("postgres"));
-            registry.register("redis", new InMemoryHealthCheck("redis").setDegraded("high latency"));
+            registry.register(
+                    "redis", new InMemoryHealthCheck("redis").setDegraded("high latency"));
 
             HealthResult result = registry.checkAll();
 
@@ -181,16 +180,18 @@ class HealthCheckRegistryTest {
             var shortTimeoutRegistry = new HealthCheckRegistry(100); // 100ms timeout
 
             // Register a check that takes too long
-            shortTimeoutRegistry.register("slow", () ->
-                    CompletableFuture.supplyAsync(() -> {
-                        try {
-                            Thread.sleep(5000); // 5 seconds — will timeout
-                        } catch (InterruptedException e) {
-                            Thread.currentThread().interrupt();
-                        }
-                        return ComponentHealth.healthy("slow", 5000);
-                    })
-            );
+            shortTimeoutRegistry.register(
+                    "slow",
+                    () ->
+                            CompletableFuture.supplyAsync(
+                                    () -> {
+                                        try {
+                                            Thread.sleep(5000); // 5 seconds — will timeout
+                                        } catch (InterruptedException e) {
+                                            Thread.currentThread().interrupt();
+                                        }
+                                        return ComponentHealth.healthy("slow", 5000);
+                                    }));
 
             HealthResult result = shortTimeoutRegistry.checkAll();
 
@@ -202,8 +203,9 @@ class HealthCheckRegistryTest {
         @Test
         @DisplayName("should handle exception-throwing health check")
         void shouldHandleExceptionThrowingCheck() {
-            registry.register("bad-check", () ->
-                    CompletableFuture.failedFuture(new RuntimeException("check exploded")));
+            registry.register(
+                    "bad-check",
+                    () -> CompletableFuture.failedFuture(new RuntimeException("check exploded")));
 
             HealthResult result = registry.checkAll();
 

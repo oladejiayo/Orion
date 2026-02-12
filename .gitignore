@@ -27,6 +27,8 @@ out/
 
 # ---------- IDE — VS Code ----------
 .vscode/
+!.vscode/settings.json
+!.vscode/extensions.json
 *.code-workspace
 
 # ---------- IDE — Eclipse ----------

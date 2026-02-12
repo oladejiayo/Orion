@@ -1,8 +1,6 @@
 package com.orion.observability;
 
-/**
- * Health status for an individual component or the aggregate system.
- */
+/** Health status for an individual component or the aggregate system. */
 public enum HealthStatus {
 
     /** All components are functioning normally. */

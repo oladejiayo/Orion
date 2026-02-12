@@ -4,13 +4,13 @@ import java.time.Instant;
 
 /**
  * Canonical event envelope for all domain events in the Orion platform.
- * <p>
- * Every event published to Kafka MUST be wrapped in this envelope.
- * The envelope carries standard metadata (identification, correlation,
- * multi-tenancy, versioning) alongside the domain-specific payload.
- * <p>
- * This is a Java record — immutable by design. Once an event is created,
- * it cannot be modified, which is exactly the semantics we want for events.
+ *
+ * <p>Every event published to Kafka MUST be wrapped in this envelope. The envelope carries standard
+ * metadata (identification, correlation, multi-tenancy, versioning) alongside the domain-specific
+ * payload.
+ *
+ * <p>This is a Java record — immutable by design. Once an event is created, it cannot be modified,
+ * which is exactly the semantics we want for events.
  *
  * @param <T> the type of the domain-specific payload
  */
@@ -43,5 +43,4 @@ public record EventEnvelope<T>(
         EventEntity entity,
 
         /** Domain-specific event data. */
-        T payload
-) {}
+        T payload) {}

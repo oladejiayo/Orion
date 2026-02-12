@@ -2,9 +2,9 @@ package com.orion.eventmodel;
 
 /**
  * Validates {@link EventEnvelope} instances for required fields and format.
- * <p>
- * WHY manual validation over Bean Validation: no annotation-processing dependency,
- * returns all errors at once in a {@link ValidationResult}, and is fast.
+ *
+ * <p>WHY manual validation over Bean Validation: no annotation-processing dependency, returns all
+ * errors at once in a {@link ValidationResult}, and is fast.
  */
 public final class EventValidator {
 

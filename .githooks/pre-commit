@@ -1,0 +1,42 @@
+#!/bin/sh
+# ==============================================================================
+# Orion Platform — Pre-commit Git Hook (US-01-08)
+#
+# WHY: Catches formatting issues BEFORE they reach the repository.
+# Equivalent to Husky + lint-staged in the TypeScript world.
+#
+# This hook runs Spotless check on staged Java files only.
+# If formatting issues are found, the commit is rejected with instructions.
+#
+# SETUP: git config core.hooksPath .githooks
+# ==============================================================================
+
+echo "🔍 Running pre-commit checks..."
+
+# Check if Maven wrapper exists
+if [ -f "./mvnw" ]; then
+    MVN="./mvnw"
+elif command -v mvn >/dev/null 2>&1; then
+    MVN="mvn"
+else
+    echo "⚠️  Maven not found. Skipping formatting check."
+    exit 0
+fi
+
+# Run Spotless check (formatting verification)
+echo "📐 Checking code formatting (Spotless)..."
+$MVN spotless:check -q --no-transfer-progress 2>/dev/null
+SPOTLESS_EXIT=$?
+
+if [ $SPOTLESS_EXIT -ne 0 ]; then
+    echo ""
+    echo "❌ Code formatting issues detected!"
+    echo ""
+    echo "   Fix automatically with:  ./mvnw spotless:apply"
+    echo "   Then stage the changes:  git add -u"
+    echo ""
+    exit 1
+fi
+
+echo "✅ Pre-commit checks passed."
+exit 0

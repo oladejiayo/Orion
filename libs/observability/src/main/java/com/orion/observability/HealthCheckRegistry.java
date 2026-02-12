@@ -8,12 +8,12 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 
 /**
- * Registry that aggregates multiple {@link HealthCheck} instances and runs them
- * concurrently to produce a single {@link HealthResult}.
- * <p>
- * Health checks are registered by component name. When {@link #checkAll()} is called,
- * all checks run in parallel (via {@link CompletableFuture}). A timeout prevents slow
- * checks from blocking the health endpoint indefinitely.
+ * Registry that aggregates multiple {@link HealthCheck} instances and runs them concurrently to
+ * produce a single {@link HealthResult}.
+ *
+ * <p>Health checks are registered by component name. When {@link #checkAll()} is called, all checks
+ * run in parallel (via {@link CompletableFuture}). A timeout prevents slow checks from blocking the
+ * health endpoint indefinitely.
  */
 public final class HealthCheckRegistry {
 
@@ -23,9 +23,7 @@ public final class HealthCheckRegistry {
     private final Map<String, HealthCheck> checks = new ConcurrentHashMap<>();
     private final long timeoutMs;
 
-    /**
-     * Creates a registry with the default timeout.
-     */
+    /** Creates a registry with the default timeout. */
     public HealthCheckRegistry() {
         this(DEFAULT_TIMEOUT_MS);
     }
@@ -43,10 +41,10 @@ public final class HealthCheckRegistry {
     }
 
     /**
-     * Registers a health check under the given component name.
-     * Replaces any existing check for the same name.
+     * Registers a health check under the given component name. Replaces any existing check for the
+     * same name.
      *
-     * @param name  component name (e.g., "postgres", "redis")
+     * @param name component name (e.g., "postgres", "redis")
      * @param check the health check to register
      */
     public void register(String name, HealthCheck check) {
@@ -71,8 +69,8 @@ public final class HealthCheckRegistry {
 
     /**
      * Runs all registered health checks concurrently and aggregates the results.
-     * <p>
-     * Returns immediately with {@link HealthStatus#HEALTHY} if no checks are registered.
+     *
+     * <p>Returns immediately with {@link HealthStatus#HEALTHY} if no checks are registered.
      * Individual checks that exceed the timeout are reported as {@link HealthStatus#UNHEALTHY}.
      *
      * @return the aggregate health result
@@ -95,18 +93,21 @@ public final class HealthCheckRegistry {
         for (Map.Entry<String, CompletableFuture<ComponentHealth>> entry : futures.entrySet()) {
             String name = entry.getKey();
             try {
-                ComponentHealth result = entry.getValue()
-                        .orTimeout(timeoutMs, TimeUnit.MILLISECONDS)
-                        .join();
+                ComponentHealth result =
+                        entry.getValue().orTimeout(timeoutMs, TimeUnit.MILLISECONDS).join();
                 results.put(name, result);
 
                 if (result.status() == HealthStatus.UNHEALTHY) {
                     overall = HealthStatus.UNHEALTHY;
-                } else if (result.status() == HealthStatus.DEGRADED && overall == HealthStatus.HEALTHY) {
+                } else if (result.status() == HealthStatus.DEGRADED
+                        && overall == HealthStatus.HEALTHY) {
                     overall = HealthStatus.DEGRADED;
                 }
             } catch (Exception e) {
-                results.put(name, ComponentHealth.unhealthy(name, "Timeout or error: " + e.getMessage(), timeoutMs));
+                results.put(
+                        name,
+                        ComponentHealth.unhealthy(
+                                name, "Timeout or error: " + e.getMessage(), timeoutMs));
                 overall = HealthStatus.UNHEALTHY;
             }
         }
@@ -114,16 +115,12 @@ public final class HealthCheckRegistry {
         return new HealthResult(overall, results, Instant.now());
     }
 
-    /**
-     * Returns the number of registered health checks.
-     */
+    /** Returns the number of registered health checks. */
     public int size() {
         return checks.size();
     }
 
-    /**
-     * Returns the configured timeout in milliseconds.
-     */
+    /** Returns the configured timeout in milliseconds. */
     public long timeoutMs() {
         return timeoutMs;
     }

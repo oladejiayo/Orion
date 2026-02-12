@@ -1,23 +1,22 @@
 package com.orion.observability;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.DistributionSummary;
 import io.micrometer.core.instrument.Timer;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
+import java.time.Duration;
+import java.util.concurrent.atomic.AtomicLong;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
-import java.time.Duration;
-import java.util.concurrent.atomic.AtomicLong;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-
 /**
- * Tests for {@link MetricFactory} — validates metric creation with automatic
- * service tags, counter/timer/gauge/distribution operations.
+ * Tests for {@link MetricFactory} — validates metric creation with automatic service tags,
+ * counter/timer/gauge/distribution operations.
  */
 @DisplayName("MetricFactory")
 class MetricFactoryTest {
@@ -86,8 +85,8 @@ class MetricFactoryTest {
         @Test
         @DisplayName("should create counter with additional tags")
         void shouldCreateCounterWithExtraTags() {
-            Counter counter = factory.counter("trades.executed", "Trades executed",
-                    "asset_class", "FX");
+            Counter counter =
+                    factory.counter("trades.executed", "Trades executed", "asset_class", "FX");
 
             counter.increment();
 
@@ -109,15 +108,16 @@ class MetricFactoryTest {
             timer.record(Duration.ofMillis(250));
 
             assertThat(timer.count()).isEqualTo(2);
-            assertThat(timer.totalTime(java.util.concurrent.TimeUnit.MILLISECONDS)).isEqualTo(400.0);
+            assertThat(timer.totalTime(java.util.concurrent.TimeUnit.MILLISECONDS))
+                    .isEqualTo(400.0);
             assertThat(timer.getId().getTag("service")).isEqualTo("test-service");
         }
 
         @Test
         @DisplayName("should create timer with additional tags")
         void shouldCreateTimerWithExtraTags() {
-            Timer timer = factory.timer("grpc.latency", "gRPC call latency",
-                    "method", "PlaceOrder");
+            Timer timer =
+                    factory.timer("grpc.latency", "gRPC call latency", "method", "PlaceOrder");
 
             assertThat(timer.getId().getTag("method")).isEqualTo("PlaceOrder");
             assertThat(timer.getId().getTag("service")).isEqualTo("test-service");
@@ -131,8 +131,8 @@ class MetricFactoryTest {
         @Test
         @DisplayName("should create distribution summary with service tag")
         void shouldCreateDistributionSummary() {
-            DistributionSummary summary = factory.distributionSummary(
-                    "payload.size", "Request payload size in bytes");
+            DistributionSummary summary =
+                    factory.distributionSummary("payload.size", "Request payload size in bytes");
 
             summary.record(1024);
             summary.record(2048);
@@ -155,9 +155,12 @@ class MetricFactoryTest {
             value.set(42);
 
             // Verify the gauge is registered and has the right tags
-            assertThat(registry.get("connections.active")
-                    .tag("service", "test-service")
-                    .gauge().value()).isEqualTo(42.0);
+            assertThat(
+                            registry.get("connections.active")
+                                    .tag("service", "test-service")
+                                    .gauge()
+                                    .value())
+                    .isEqualTo(42.0);
         }
 
         @Test

@@ -1,20 +1,19 @@
 package com.orion.security;
 
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Nested;
-import org.junit.jupiter.api.Test;
+import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Set;
-
-import static org.assertj.core.api.Assertions.assertThat;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Test;
 
 /**
  * Tests for domain records (AC1/AC2: Security Context, Tenant, User records).
  *
- * WHY: Verify all security domain records hold correct fields,
- * provide equality, and support default factories.
+ * <p>WHY: Verify all security domain records hold correct fields, provide equality, and support
+ * default factories.
  */
 @DisplayName("US-01-04 AC1/AC2: Security Domain Records")
 class OrionSecurityContextTest {
@@ -88,13 +87,14 @@ class OrionSecurityContextTest {
         @Test
         @DisplayName("holds asset classes, instruments, venues, limits")
         void holdsAllFields() {
-            var ent = new Entitlements(
-                    EnumSet.of(AssetClass.FX, AssetClass.RATES),
-                    Set.of("INST-1"),
-                    Set.of("VEN-1"),
-                    TradingLimits.defaults()
-            );
-            assertThat(ent.assetClasses()).containsExactlyInAnyOrder(AssetClass.FX, AssetClass.RATES);
+            var ent =
+                    new Entitlements(
+                            EnumSet.of(AssetClass.FX, AssetClass.RATES),
+                            Set.of("INST-1"),
+                            Set.of("VEN-1"),
+                            TradingLimits.defaults());
+            assertThat(ent.assetClasses())
+                    .containsExactlyInAnyOrder(AssetClass.FX, AssetClass.RATES);
             assertThat(ent.instruments()).containsExactly("INST-1");
             assertThat(ent.venues()).containsExactly("VEN-1");
             assertThat(ent.limits()).isNotNull();
@@ -119,10 +119,14 @@ class OrionSecurityContextTest {
         void holdsAllFields() {
             var user = new AuthenticatedUser("u-1", "a@b.com", "auser", "Alice");
             var tenant = new TenantContext("t-1", "Acme", TenantType.STANDARD);
-            var ctx = new OrionSecurityContext(
-                    user, tenant, List.of(Role.TRADER), Entitlements.defaults(),
-                    "jwt-token", "corr-123"
-            );
+            var ctx =
+                    new OrionSecurityContext(
+                            user,
+                            tenant,
+                            List.of(Role.TRADER),
+                            Entitlements.defaults(),
+                            "jwt-token",
+                            "corr-123");
             assertThat(ctx.user()).isEqualTo(user);
             assertThat(ctx.tenant()).isEqualTo(tenant);
             assertThat(ctx.roles()).containsExactly(Role.TRADER);
@@ -177,7 +181,8 @@ class OrionSecurityContextTest {
         @Test
         @DisplayName("fail() returns invalid result with errors")
         void failResult() {
-            var result = SecurityValidationResult.fail(List.of("missing userId", "missing tenantId"));
+            var result =
+                    SecurityValidationResult.fail(List.of("missing userId", "missing tenantId"));
             assertThat(result.valid()).isFalse();
             assertThat(result.errors()).hasSize(2);
         }

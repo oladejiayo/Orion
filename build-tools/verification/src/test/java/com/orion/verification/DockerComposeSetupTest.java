@@ -1,23 +1,22 @@
 package com.orion.verification;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-
-import static org.assertj.core.api.Assertions.assertThat;
-
 /**
  * Structural verification tests for the Docker Compose local dev environment (US-01-02).
  *
- * WHY: These tests codify the acceptance criteria from US-01-02 so that
- * the local development infrastructure configuration is validated by CI.
- * They ensure Docker Compose files, environment templates, init scripts,
- * helper scripts, and documentation are all in place and correctly structured.
+ * <p>WHY: These tests codify the acceptance criteria from US-01-02 so that the local development
+ * infrastructure configuration is validated by CI. They ensure Docker Compose files, environment
+ * templates, init scripts, helper scripts, and documentation are all in place and correctly
+ * structured.
  */
 @DisplayName("US-01-02: Docker Compose Local Development Environment")
 class DockerComposeSetupTest {
@@ -49,9 +48,7 @@ class DockerComposeSetupTest {
         @Test
         @DisplayName("docker-compose.yml exists")
         void dockerComposeFileExists() {
-            assertThat(composeDir.resolve("docker-compose.yml"))
-                    .exists()
-                    .isRegularFile();
+            assertThat(composeDir.resolve("docker-compose.yml")).exists().isRegularFile();
         }
 
         @Test
@@ -76,9 +73,7 @@ class DockerComposeSetupTest {
         @DisplayName("docker-compose.yml defines Redis service")
         void redisServiceDefined() throws IOException {
             String content = Files.readString(composeDir.resolve("docker-compose.yml"));
-            assertThat(content)
-                    .as("Redis service must be defined for caching")
-                    .contains("redis:");
+            assertThat(content).as("Redis service must be defined for caching").contains("redis:");
         }
 
         @Test
@@ -94,18 +89,14 @@ class DockerComposeSetupTest {
         @DisplayName("PostgreSQL uses version 15 image")
         void postgresVersion15() throws IOException {
             String content = Files.readString(composeDir.resolve("docker-compose.yml"));
-            assertThat(content)
-                    .as("PostgreSQL must use version 15")
-                    .contains("postgres:15");
+            assertThat(content).as("PostgreSQL must use version 15").contains("postgres:15");
         }
 
         @Test
         @DisplayName("Redis uses version 7 image")
         void redisVersion7() throws IOException {
             String content = Files.readString(composeDir.resolve("docker-compose.yml"));
-            assertThat(content)
-                    .as("Redis must use version 7")
-                    .contains("redis:7");
+            assertThat(content).as("Redis must use version 7").contains("redis:7");
         }
 
         @Test
@@ -228,9 +219,7 @@ class DockerComposeSetupTest {
         @DisplayName(".env.example contains pgAdmin configuration")
         void envExamplePgAdminConfig() throws IOException {
             String content = Files.readString(composeDir.resolve(".env.example"));
-            assertThat(content)
-                    .contains("PGADMIN_EMAIL")
-                    .contains("PGADMIN_PASSWORD");
+            assertThat(content).contains("PGADMIN_EMAIL").contains("PGADMIN_PASSWORD");
         }
 
         @Test
@@ -258,9 +247,8 @@ class DockerComposeSetupTest {
             assertThat(initDir).exists().isDirectory();
 
             // At least one .sql file must exist
-            long sqlFileCount = Files.list(initDir)
-                    .filter(p -> p.toString().endsWith(".sql"))
-                    .count();
+            long sqlFileCount =
+                    Files.list(initDir).filter(p -> p.toString().endsWith(".sql")).count();
             assertThat(sqlFileCount)
                     .as("At least one .sql init script must exist in init-scripts/postgres/")
                     .isGreaterThanOrEqualTo(1);
@@ -271,13 +259,18 @@ class DockerComposeSetupTest {
         void initScriptCreatesServiceDatabases() throws IOException {
             Path initDir = composeDir.resolve("init-scripts/postgres");
             // Read all SQL files and check they create the expected databases
-            String allSql = Files.list(initDir)
-                    .filter(p -> p.toString().endsWith(".sql"))
-                    .map(p -> {
-                        try { return Files.readString(p); }
-                        catch (IOException e) { return ""; }
-                    })
-                    .reduce("", String::concat);
+            String allSql =
+                    Files.list(initDir)
+                            .filter(p -> p.toString().endsWith(".sql"))
+                            .map(
+                                    p -> {
+                                        try {
+                                            return Files.readString(p);
+                                        } catch (IOException e) {
+                                            return "";
+                                        }
+                                    })
+                            .reduce("", String::concat);
 
             assertThat(allSql)
                     .as("Init script should create per-service databases")
@@ -316,11 +309,11 @@ class DockerComposeSetupTest {
         void allServicesOnNetwork() throws IOException {
             String content = Files.readString(composeDir.resolve("docker-compose.yml"));
             // Count occurrences of orion-network — should appear in each service + networks section
-            long count = content.lines()
-                    .filter(line -> line.contains("orion-network"))
-                    .count();
+            long count = content.lines().filter(line -> line.contains("orion-network")).count();
             assertThat(count)
-                    .as("orion-network should appear in every service + networks section (at least 8 times)")
+                    .as(
+                            "orion-network should appear in every service + networks section (at"
+                                    + " least 8 times)")
                     .isGreaterThanOrEqualTo(7);
         }
 

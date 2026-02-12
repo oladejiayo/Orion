@@ -6,13 +6,12 @@ import java.util.Set;
 
 /**
  * Platform roles as defined in PRD Section 5.2.
- * <p>
- * WHY an enum with hierarchy: compile-time safety, exhaustive switch,
- * and the role hierarchy (ADMIN implies TRADER/SALES/RISK/ANALYST)
- * is encoded once here instead of scattered across services.
+ *
+ * <p>WHY an enum with hierarchy: compile-time safety, exhaustive switch, and the role hierarchy
+ * (ADMIN implies TRADER/SALES/RISK/ANALYST) is encoded once here instead of scattered across
+ * services.
  */
 public enum Role {
-
     TRADER("ROLE_TRADER"),
     SALES("ROLE_SALES"),
     RISK("ROLE_RISK"),
@@ -33,12 +32,13 @@ public enum Role {
 
     /**
      * Returns the set of roles that this role implies (inherits).
-     * <p>
-     * Hierarchy from PRD:
+     *
+     * <p>Hierarchy from PRD:
+     *
      * <ul>
-     *   <li>ADMIN implies TRADER, SALES, RISK, ANALYST</li>
-     *   <li>SALES implies TRADER</li>
-     *   <li>All others imply nothing</li>
+     *   <li>ADMIN implies TRADER, SALES, RISK, ANALYST
+     *   <li>SALES implies TRADER
+     *   <li>All others imply nothing
      * </ul>
      */
     public Set<Role> impliedRoles() {
@@ -50,8 +50,7 @@ public enum Role {
     }
 
     /**
-     * Checks whether this role implies the given role
-     * (either directly or through the hierarchy).
+     * Checks whether this role implies the given role (either directly or through the hierarchy).
      */
     public boolean implies(Role other) {
         return this == other || impliedRoles().contains(other);
@@ -72,9 +71,7 @@ public enum Role {
         return Optional.empty();
     }
 
-    /**
-     * Checks whether a string corresponds to a known role.
-     */
+    /** Checks whether a string corresponds to a known role. */
     public static boolean isKnown(String value) {
         return fromString(value).isPresent();
     }

@@ -1,19 +1,18 @@
 package com.orion.observability;
 
-import org.slf4j.MDC;
-
 import java.util.Optional;
+import org.slf4j.MDC;
 
 /**
  * Thread-local holder for {@link CorrelationContext} with SLF4J MDC bridge.
- * <p>
- * When a correlation context is set, all MDC keys (correlationId, tenantId, userId,
- * requestId, spanId, traceId) are populated so that every log statement on this thread
- * automatically includes them. When cleared, all MDC keys are removed.
- * <p>
- * For virtual threads (Java 21), each virtual thread gets its own ThreadLocal copy.
- * When using thread pools, callers must transfer the context explicitly or use
- * {@link #runWithContext(CorrelationContext, Runnable)}.
+ *
+ * <p>When a correlation context is set, all MDC keys (correlationId, tenantId, userId, requestId,
+ * spanId, traceId) are populated so that every log statement on this thread automatically includes
+ * them. When cleared, all MDC keys are removed.
+ *
+ * <p>For virtual threads (Java 21), each virtual thread gets its own ThreadLocal copy. When using
+ * thread pools, callers must transfer the context explicitly or use {@link
+ * #runWithContext(CorrelationContext, Runnable)}.
  */
 public final class CorrelationContextHolder {
 
@@ -37,24 +36,20 @@ public final class CorrelationContextHolder {
         populateMdc(context);
     }
 
-    /**
-     * Returns the current thread's correlation context, if set.
-     */
+    /** Returns the current thread's correlation context, if set. */
     public static Optional<CorrelationContext> get() {
         return Optional.ofNullable(CONTEXT.get());
     }
 
-    /**
-     * Clears the correlation context and removes all MDC keys for the current thread.
-     */
+    /** Clears the correlation context and removes all MDC keys for the current thread. */
     public static void clear() {
         CONTEXT.remove();
         clearMdc();
     }
 
     /**
-     * Executes a {@link Runnable} with the given correlation context set, then restores
-     * the previous context (or clears if there was none). Useful for thread pool handoff.
+     * Executes a {@link Runnable} with the given correlation context set, then restores the
+     * previous context (or clears if there was none). Useful for thread pool handoff.
      *
      * @param context the correlation context for the duration of the runnable
      * @param runnable the work to execute

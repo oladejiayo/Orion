@@ -1,15 +1,14 @@
 package com.orion.grpc;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import com.orion.common.v1.Money;
 import com.orion.common.v1.PaginationRequest;
 import com.orion.common.v1.TenantContext;
 import com.orion.common.v1.Timestamp;
 import com.orion.posttrade.v1.ConfirmationDetails;
 import com.orion.posttrade.v1.ConfirmationStatus;
-import com.orion.posttrade.v1.GetConfirmationRequest;
-import com.orion.posttrade.v1.GetSettlementStatusRequest;
 import com.orion.posttrade.v1.ListConfirmationsRequest;
-import com.orion.posttrade.v1.ListConfirmationsResponse;
 import com.orion.posttrade.v1.PostTradeServiceGrpc;
 import com.orion.posttrade.v1.SettlementDetails;
 import com.orion.posttrade.v1.SettlementStatus;
@@ -17,11 +16,9 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
-import static org.assertj.core.api.Assertions.assertThat;
-
 /**
- * Verifies the generated Post-Trade service proto messages — confirmations,
- * settlements, status enums, and service descriptor.
+ * Verifies the generated Post-Trade service proto messages — confirmations, settlements, status
+ * enums, and service descriptor.
  */
 @DisplayName("Post-Trade Proto")
 class PostTradeProtoTest {
@@ -84,13 +81,14 @@ class PostTradeProtoTest {
         @Test
         @DisplayName("should build pending confirmation")
         void shouldBuildPendingConfirmation() {
-            var conf = ConfirmationDetails.newBuilder()
-                    .setConfirmationId("conf-001")
-                    .setTradeId("trade-001")
-                    .setStatus(ConfirmationStatus.CONFIRMATION_STATUS_SENT)
-                    .setSentAt(Timestamp.newBuilder().setSeconds(1_700_000_000L))
-                    .setCounterpartyId("lp-citi")
-                    .build();
+            var conf =
+                    ConfirmationDetails.newBuilder()
+                            .setConfirmationId("conf-001")
+                            .setTradeId("trade-001")
+                            .setStatus(ConfirmationStatus.CONFIRMATION_STATUS_SENT)
+                            .setSentAt(Timestamp.newBuilder().setSeconds(1_700_000_000L))
+                            .setCounterpartyId("lp-citi")
+                            .build();
 
             assertThat(conf.getConfirmationId()).isEqualTo("conf-001");
             assertThat(conf.getStatus()).isEqualTo(ConfirmationStatus.CONFIRMATION_STATUS_SENT);
@@ -101,15 +99,16 @@ class PostTradeProtoTest {
         @Test
         @DisplayName("should build affirmed confirmation with optional fields")
         void shouldBuildAffirmedConfirmation() {
-            var conf = ConfirmationDetails.newBuilder()
-                    .setConfirmationId("conf-001")
-                    .setTradeId("trade-001")
-                    .setStatus(ConfirmationStatus.CONFIRMATION_STATUS_AFFIRMED)
-                    .setSentAt(Timestamp.newBuilder().setSeconds(1_700_000_000L))
-                    .setAffirmedAt(Timestamp.newBuilder().setSeconds(1_700_000_060L))
-                    .setCounterpartyId("lp-citi")
-                    .setDocumentRef("DOC-2026-001234")
-                    .build();
+            var conf =
+                    ConfirmationDetails.newBuilder()
+                            .setConfirmationId("conf-001")
+                            .setTradeId("trade-001")
+                            .setStatus(ConfirmationStatus.CONFIRMATION_STATUS_AFFIRMED)
+                            .setSentAt(Timestamp.newBuilder().setSeconds(1_700_000_000L))
+                            .setAffirmedAt(Timestamp.newBuilder().setSeconds(1_700_000_060L))
+                            .setCounterpartyId("lp-citi")
+                            .setDocumentRef("DOC-2026-001234")
+                            .build();
 
             assertThat(conf.hasAffirmedAt()).isTrue();
             assertThat(conf.hasDocumentRef()).isTrue();
@@ -124,15 +123,18 @@ class PostTradeProtoTest {
         @Test
         @DisplayName("should build pending settlement")
         void shouldBuildPendingSettlement() {
-            var settlement = SettlementDetails.newBuilder()
-                    .setSettlementId("sett-001")
-                    .setTradeId("trade-001")
-                    .setStatus(SettlementStatus.SETTLEMENT_STATUS_INSTRUCTED)
-                    .setSettlementDate(Timestamp.newBuilder().setSeconds(1_700_086_400L))
-                    .setSettlementAmount(Money.newBuilder().setAmount("1085000.00").setCurrency("USD"))
-                    .build();
+            var settlement =
+                    SettlementDetails.newBuilder()
+                            .setSettlementId("sett-001")
+                            .setTradeId("trade-001")
+                            .setStatus(SettlementStatus.SETTLEMENT_STATUS_INSTRUCTED)
+                            .setSettlementDate(Timestamp.newBuilder().setSeconds(1_700_086_400L))
+                            .setSettlementAmount(
+                                    Money.newBuilder().setAmount("1085000.00").setCurrency("USD"))
+                            .build();
 
-            assertThat(settlement.getStatus()).isEqualTo(SettlementStatus.SETTLEMENT_STATUS_INSTRUCTED);
+            assertThat(settlement.getStatus())
+                    .isEqualTo(SettlementStatus.SETTLEMENT_STATUS_INSTRUCTED);
             assertThat(settlement.getSettlementAmount().getCurrency()).isEqualTo("USD");
             assertThat(settlement.hasSettledAt()).isFalse();
             assertThat(settlement.hasFailureReason()).isFalse();
@@ -141,17 +143,20 @@ class PostTradeProtoTest {
         @Test
         @DisplayName("should build failed settlement with reason")
         void shouldBuildFailedSettlement() {
-            var settlement = SettlementDetails.newBuilder()
-                    .setSettlementId("sett-002")
-                    .setTradeId("trade-002")
-                    .setStatus(SettlementStatus.SETTLEMENT_STATUS_FAILED)
-                    .setSettlementDate(Timestamp.newBuilder().setSeconds(1_700_086_400L))
-                    .setSettlementAmount(Money.newBuilder().setAmount("500000.00").setCurrency("EUR"))
-                    .setFailureReason("Insufficient funds in settlement account")
-                    .build();
+            var settlement =
+                    SettlementDetails.newBuilder()
+                            .setSettlementId("sett-002")
+                            .setTradeId("trade-002")
+                            .setStatus(SettlementStatus.SETTLEMENT_STATUS_FAILED)
+                            .setSettlementDate(Timestamp.newBuilder().setSeconds(1_700_086_400L))
+                            .setSettlementAmount(
+                                    Money.newBuilder().setAmount("500000.00").setCurrency("EUR"))
+                            .setFailureReason("Insufficient funds in settlement account")
+                            .build();
 
             assertThat(settlement.hasFailureReason()).isTrue();
-            assertThat(settlement.getFailureReason()).isEqualTo("Insufficient funds in settlement account");
+            assertThat(settlement.getFailureReason())
+                    .isEqualTo("Insufficient funds in settlement account");
         }
     }
 
@@ -162,11 +167,13 @@ class PostTradeProtoTest {
         @Test
         @DisplayName("should build filtered list request")
         void shouldBuildFilteredRequest() {
-            var req = ListConfirmationsRequest.newBuilder()
-                    .setTenant(TenantContext.newBuilder().setTenantId("acme-corp"))
-                    .setPagination(PaginationRequest.newBuilder().setPage(1).setPageSize(20))
-                    .setStatus(ConfirmationStatus.CONFIRMATION_STATUS_PENDING)
-                    .build();
+            var req =
+                    ListConfirmationsRequest.newBuilder()
+                            .setTenant(TenantContext.newBuilder().setTenantId("acme-corp"))
+                            .setPagination(
+                                    PaginationRequest.newBuilder().setPage(1).setPageSize(20))
+                            .setStatus(ConfirmationStatus.CONFIRMATION_STATUS_PENDING)
+                            .build();
 
             assertThat(req.hasStatus()).isTrue();
             assertThat(req.getStatus()).isEqualTo(ConfirmationStatus.CONFIRMATION_STATUS_PENDING);
@@ -180,14 +187,16 @@ class PostTradeProtoTest {
         @Test
         @DisplayName("should round-trip SettlementDetails")
         void shouldRoundTrip() throws Exception {
-            var settlement = SettlementDetails.newBuilder()
-                    .setSettlementId("sett-003")
-                    .setTradeId("trade-003")
-                    .setStatus(SettlementStatus.SETTLEMENT_STATUS_SETTLED)
-                    .setSettlementDate(Timestamp.newBuilder().setSeconds(1_700_086_400L))
-                    .setSettlementAmount(Money.newBuilder().setAmount("2500000.00").setCurrency("GBP"))
-                    .setSettledAt(Timestamp.newBuilder().setSeconds(1_700_090_000L))
-                    .build();
+            var settlement =
+                    SettlementDetails.newBuilder()
+                            .setSettlementId("sett-003")
+                            .setTradeId("trade-003")
+                            .setStatus(SettlementStatus.SETTLEMENT_STATUS_SETTLED)
+                            .setSettlementDate(Timestamp.newBuilder().setSeconds(1_700_086_400L))
+                            .setSettlementAmount(
+                                    Money.newBuilder().setAmount("2500000.00").setCurrency("GBP"))
+                            .setSettledAt(Timestamp.newBuilder().setSeconds(1_700_090_000L))
+                            .build();
 
             var parsed = SettlementDetails.parseFrom(settlement.toByteArray());
             assertThat(parsed).isEqualTo(settlement);

@@ -1,0 +1,68 @@
+#!/bin/sh
+# ==============================================================================
+# Orion Platform — Commit Message Validation Hook (US-01-08)
+#
+# WHY: Enforces Conventional Commits format so that:
+#   - Automated changelogs can be generated
+#   - Semantic versioning can be derived from commit history
+#   - The git log is human-readable and searchable
+#
+# FORMAT: type(scope): subject
+#
+# ALLOWED TYPES:
+#   feat     — A new feature
+#   fix      — A bug fix
+#   docs     — Documentation changes only
+#   style    — Code style (formatting, whitespace) — no logic change
+#   refactor — Code change that neither fixes a bug nor adds a feature
+#   perf     — Performance improvement
+#   test     — Adding or updating tests
+#   chore    — Build process, dependencies, tooling changes
+#   revert   — Reverting a previous commit
+#   ci       — CI/CD pipeline changes
+#   build    — Build system or external dependency changes
+#
+# SETUP: git config core.hooksPath .githooks
+# ==============================================================================
+
+# Read the commit message from the file passed as argument
+COMMIT_MSG_FILE="$1"
+COMMIT_MSG=$(cat "$COMMIT_MSG_FILE")
+
+# Skip merge commits and fixup commits
+if echo "$COMMIT_MSG" | grep -qE "^(Merge|fixup!|squash!|amend!)"; then
+    exit 0
+fi
+
+# Define the conventional commit pattern
+# Format: type(optional-scope): subject
+# - type: one of the allowed types
+# - scope: optional, lowercase alphanumeric + hyphens
+# - subject: lowercase start, no period at end
+PATTERN="^(feat|fix|docs|style|refactor|perf|test|chore|revert|ci|build)(\([a-z][a-z0-9-]*\))?: .{1,100}$"
+
+# Validate the first line of the commit message
+FIRST_LINE=$(echo "$COMMIT_MSG" | head -n1)
+
+if ! echo "$FIRST_LINE" | grep -qE "$PATTERN"; then
+    echo ""
+    echo "❌ Invalid commit message format!"
+    echo ""
+    echo "   Your message:  $FIRST_LINE"
+    echo ""
+    echo "   Expected format:  type(scope): subject"
+    echo ""
+    echo "   Allowed types:"
+    echo "     feat, fix, docs, style, refactor, perf,"
+    echo "     test, chore, revert, ci, build"
+    echo ""
+    echo "   Examples:"
+    echo "     feat(rfq): add quote expiry timeout"
+    echo "     fix(security): validate tenant ID before query"
+    echo "     docs: update architecture diagram"
+    echo "     chore(deps): bump Spring Boot to 3.4.4"
+    echo ""
+    exit 1
+fi
+
+exit 0

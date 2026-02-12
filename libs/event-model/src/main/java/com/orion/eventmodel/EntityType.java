@@ -1,10 +1,7 @@
 package com.orion.eventmodel;
 
-/**
- * All known entity types (aggregate roots) in the Orion platform.
- */
+/** All known entity types (aggregate roots) in the Orion platform. */
 public enum EntityType {
-
     TRADE("Trade"),
     RFQ("RFQ"),
     ORDER("Order"),

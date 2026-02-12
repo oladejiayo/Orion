@@ -5,9 +5,9 @@ import java.util.UUID;
 
 /**
  * Factory methods for creating {@link EventEnvelope} instances.
- * <p>
- * WHY a factory: Encapsulates default value logic (UUID generation,
- * current timestamp, default version) so callers don't repeat boilerplate.
+ *
+ * <p>WHY a factory: Encapsulates default value logic (UUID generation, current timestamp, default
+ * version) so callers don't repeat boilerplate.
  */
 public final class EventFactory {
 
@@ -15,16 +15,9 @@ public final class EventFactory {
         // utility class — no instantiation
     }
 
-    /**
-     * Creates a new event envelope with auto-generated eventId, timestamp, and correlationId.
-     */
+    /** Creates a new event envelope with auto-generated eventId, timestamp, and correlationId. */
     public static <T> EventEnvelope<T> create(
-            String eventType,
-            String producer,
-            String tenantId,
-            EventEntity entity,
-            T payload
-    ) {
+            String eventType, String producer, String tenantId, EventEntity entity, T payload) {
         return new EventEnvelope<>(
                 UUID.randomUUID().toString(),
                 eventType,
@@ -35,13 +28,10 @@ public final class EventFactory {
                 UUID.randomUUID().toString(),
                 "direct",
                 entity,
-                payload
-        );
+                payload);
     }
 
-    /**
-     * Creates a new event envelope with explicit version.
-     */
+    /** Creates a new event envelope with explicit version. */
     public static <T> EventEnvelope<T> create(
             String eventType,
             int eventVersion,
@@ -50,8 +40,7 @@ public final class EventFactory {
             String correlationId,
             String causationId,
             EventEntity entity,
-            T payload
-    ) {
+            T payload) {
         return new EventEnvelope<>(
                 UUID.randomUUID().toString(),
                 eventType,
@@ -62,21 +51,19 @@ public final class EventFactory {
                 correlationId,
                 causationId,
                 entity,
-                payload
-        );
+                payload);
     }
 
     /**
-     * Creates a child event that inherits correlation context from a parent event.
-     * The child's causationId is set to the parent's eventId.
+     * Creates a child event that inherits correlation context from a parent event. The child's
+     * causationId is set to the parent's eventId.
      */
     public static <T> EventEnvelope<T> createChild(
             EventEnvelope<?> parent,
             String eventType,
             String producer,
             EventEntity entity,
-            T payload
-    ) {
+            T payload) {
         return new EventEnvelope<>(
                 UUID.randomUUID().toString(),
                 eventType,
@@ -87,7 +74,6 @@ public final class EventFactory {
                 parent.correlationId(),
                 parent.eventId(),
                 entity,
-                payload
-        );
+                payload);
     }
 }

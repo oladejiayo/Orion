@@ -4,9 +4,9 @@ import java.util.Optional;
 
 /**
  * Extracts bearer tokens from HTTP Authorization headers.
- * <p>
- * WHY a utility class: every service needs to extract the JWT from the
- * "Bearer xxx" header. Centralising this avoids subtle parsing bugs.
+ *
+ * <p>WHY a utility class: every service needs to extract the JWT from the "Bearer xxx" header.
+ * Centralising this avoids subtle parsing bugs.
  */
 public final class BearerTokenExtractor {
 
@@ -16,8 +16,8 @@ public final class BearerTokenExtractor {
 
     /**
      * Extracts the bearer token from an Authorization header value.
-     * <p>
-     * Expects format: {@code "Bearer <token>"}
+     *
+     * <p>Expects format: {@code "Bearer <token>"}
      *
      * @param authorizationHeader the full Authorization header value (may be null)
      * @return the token string, or empty if the header is missing/malformed

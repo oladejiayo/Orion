@@ -1,17 +1,14 @@
 package com.orion.observability;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
+import java.time.Instant;
+import java.util.Map;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
-import java.time.Instant;
-import java.util.Map;
-
-import static org.assertj.core.api.Assertions.assertThat;
-
-/**
- * Tests for {@link HealthResult} record.
- */
+/** Tests for {@link HealthResult} record. */
 @DisplayName("HealthResult")
 class HealthResultTest {
 
@@ -26,11 +23,9 @@ class HealthResultTest {
             var pg = ComponentHealth.healthy("postgres", 5);
             var redis = ComponentHealth.unhealthy("redis", "timeout", 3000);
 
-            var result = new HealthResult(
-                    HealthStatus.UNHEALTHY,
-                    Map.of("postgres", pg, "redis", redis),
-                    now
-            );
+            var result =
+                    new HealthResult(
+                            HealthStatus.UNHEALTHY, Map.of("postgres", pg, "redis", redis), now);
 
             assertThat(result.status()).isEqualTo(HealthStatus.UNHEALTHY);
             assertThat(result.checks()).hasSize(2);

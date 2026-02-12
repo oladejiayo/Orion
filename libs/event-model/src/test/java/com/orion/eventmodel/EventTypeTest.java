@@ -1,16 +1,16 @@
 package com.orion.eventmodel;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
-import static org.assertj.core.api.Assertions.assertThat;
-
 /**
  * Tests for EventType enum and EntityType enum (AC6: Event Type Registry).
  *
- * WHY: Verify all expected event types exist, string lookup works,
- * and the isKnown guard functions correctly.
+ * <p>WHY: Verify all expected event types exist, string lookup works, and the isKnown guard
+ * functions correctly.
  */
 @DisplayName("US-01-03 AC6: EventType & EntityType")
 class EventTypeTest {

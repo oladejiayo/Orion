@@ -1,15 +1,15 @@
 package com.orion.observability.testing;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import com.orion.observability.CorrelationContext;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
-import static org.assertj.core.api.Assertions.assertThat;
-
 /**
- * Tests for {@link TestCorrelationContextFactory} — validates default creation,
- * random creation, and customization methods.
+ * Tests for {@link TestCorrelationContextFactory} — validates default creation, random creation,
+ * and customization methods.
  */
 @DisplayName("TestCorrelationContextFactory")
 class TestCorrelationContextFactoryTest {
@@ -23,7 +23,8 @@ class TestCorrelationContextFactoryTest {
         void shouldCreateWithDefaults() {
             CorrelationContext ctx = TestCorrelationContextFactory.createDefault();
 
-            assertThat(ctx.correlationId()).isEqualTo(TestCorrelationContextFactory.DEFAULT_CORRELATION_ID);
+            assertThat(ctx.correlationId())
+                    .isEqualTo(TestCorrelationContextFactory.DEFAULT_CORRELATION_ID);
             assertThat(ctx.tenantId()).isEqualTo(TestCorrelationContextFactory.DEFAULT_TENANT_ID);
             assertThat(ctx.userId()).isEqualTo(TestCorrelationContextFactory.DEFAULT_USER_ID);
             assertThat(ctx.requestId()).isEqualTo(TestCorrelationContextFactory.DEFAULT_REQUEST_ID);
@@ -62,7 +63,8 @@ class TestCorrelationContextFactoryTest {
             CorrelationContext ctx = TestCorrelationContextFactory.forTenant("goldman-sachs");
 
             assertThat(ctx.tenantId()).isEqualTo("goldman-sachs");
-            assertThat(ctx.correlationId()).isEqualTo(TestCorrelationContextFactory.DEFAULT_CORRELATION_ID);
+            assertThat(ctx.correlationId())
+                    .isEqualTo(TestCorrelationContextFactory.DEFAULT_CORRELATION_ID);
         }
     }
 
@@ -76,7 +78,8 @@ class TestCorrelationContextFactoryTest {
             CorrelationContext ctx = TestCorrelationContextFactory.forUser("trader-jane");
 
             assertThat(ctx.userId()).isEqualTo("trader-jane");
-            assertThat(ctx.correlationId()).isEqualTo(TestCorrelationContextFactory.DEFAULT_CORRELATION_ID);
+            assertThat(ctx.correlationId())
+                    .isEqualTo(TestCorrelationContextFactory.DEFAULT_CORRELATION_ID);
         }
     }
 
@@ -87,8 +90,9 @@ class TestCorrelationContextFactoryTest {
         @Test
         @DisplayName("should create fully customized context")
         void shouldCreateCustom() {
-            CorrelationContext ctx = TestCorrelationContextFactory.create(
-                    "my-corr", "my-tenant", "my-user", "my-req");
+            CorrelationContext ctx =
+                    TestCorrelationContextFactory.create(
+                            "my-corr", "my-tenant", "my-user", "my-req");
 
             assertThat(ctx.correlationId()).isEqualTo("my-corr");
             assertThat(ctx.tenantId()).isEqualTo("my-tenant");

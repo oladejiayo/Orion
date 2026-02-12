@@ -1,5 +1,7 @@
 package com.orion.grpc;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import com.orion.common.v1.AssetClass;
 import com.orion.common.v1.CorrelationContext;
 import com.orion.common.v1.Decimal;
@@ -12,11 +14,9 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
-import static org.assertj.core.api.Assertions.assertThat;
-
 /**
- * Verifies the generated common types from types.proto behave correctly:
- * construction, field access, optional fields, enums, and serialization round-trips.
+ * Verifies the generated common types from types.proto behave correctly: construction, field
+ * access, optional fields, enums, and serialization round-trips.
  */
 @DisplayName("Common Types Proto")
 class CommonTypesProtoTest {
@@ -28,10 +28,8 @@ class CommonTypesProtoTest {
         @Test
         @DisplayName("should build with seconds and nanos")
         void shouldBuildWithSecondsAndNanos() {
-            var ts = Timestamp.newBuilder()
-                    .setSeconds(1_700_000_000L)
-                    .setNanos(123_456_789)
-                    .build();
+            var ts =
+                    Timestamp.newBuilder().setSeconds(1_700_000_000L).setNanos(123_456_789).build();
 
             assertThat(ts.getSeconds()).isEqualTo(1_700_000_000L);
             assertThat(ts.getNanos()).isEqualTo(123_456_789);
@@ -48,10 +46,8 @@ class CommonTypesProtoTest {
         @Test
         @DisplayName("should serialize and deserialize correctly")
         void shouldRoundTrip() throws Exception {
-            var ts = Timestamp.newBuilder()
-                    .setSeconds(1_234_567_890L)
-                    .setNanos(999_999_999)
-                    .build();
+            var ts =
+                    Timestamp.newBuilder().setSeconds(1_234_567_890L).setNanos(999_999_999).build();
 
             byte[] bytes = ts.toByteArray();
             var parsed = Timestamp.parseFrom(bytes);
@@ -69,10 +65,8 @@ class CommonTypesProtoTest {
         @Test
         @DisplayName("should preserve precision in string amount")
         void shouldPreservePrecision() {
-            var money = Money.newBuilder()
-                    .setAmount("123456789.123456789")
-                    .setCurrency("USD")
-                    .build();
+            var money =
+                    Money.newBuilder().setAmount("123456789.123456789").setCurrency("USD").build();
 
             // String representation preserves arbitrary precision — no floating-point loss
             assertThat(money.getAmount()).isEqualTo("123456789.123456789");
@@ -82,10 +76,7 @@ class CommonTypesProtoTest {
         @Test
         @DisplayName("should serialize and deserialize correctly")
         void shouldRoundTrip() throws Exception {
-            var money = Money.newBuilder()
-                    .setAmount("99.875")
-                    .setCurrency("EUR")
-                    .build();
+            var money = Money.newBuilder().setAmount("99.875").setCurrency("EUR").build();
 
             var parsed = Money.parseFrom(money.toByteArray());
             assertThat(parsed).isEqualTo(money);
@@ -99,9 +90,7 @@ class CommonTypesProtoTest {
         @Test
         @DisplayName("should preserve arbitrary precision")
         void shouldPreservePrecision() {
-            var dec = Decimal.newBuilder()
-                    .setValue("0.000000001")
-                    .build();
+            var dec = Decimal.newBuilder().setValue("0.000000001").build();
 
             assertThat(dec.getValue()).isEqualTo("0.000000001");
         }
@@ -114,9 +103,7 @@ class CommonTypesProtoTest {
         @Test
         @DisplayName("should support required tenant_id")
         void shouldSupportTenantId() {
-            var tc = TenantContext.newBuilder()
-                    .setTenantId("acme-corp")
-                    .build();
+            var tc = TenantContext.newBuilder().setTenantId("acme-corp").build();
 
             assertThat(tc.getTenantId()).isEqualTo("acme-corp");
             // Optional field should report not-present when unset
@@ -126,10 +113,11 @@ class CommonTypesProtoTest {
         @Test
         @DisplayName("should support optional tenant_name")
         void shouldSupportOptionalTenantName() {
-            var tc = TenantContext.newBuilder()
-                    .setTenantId("acme-corp")
-                    .setTenantName("Acme Corporation")
-                    .build();
+            var tc =
+                    TenantContext.newBuilder()
+                            .setTenantId("acme-corp")
+                            .setTenantName("Acme Corporation")
+                            .build();
 
             assertThat(tc.hasTenantName()).isTrue();
             assertThat(tc.getTenantName()).isEqualTo("Acme Corporation");
@@ -143,11 +131,12 @@ class CommonTypesProtoTest {
         @Test
         @DisplayName("should build with required and optional fields")
         void shouldBuildWithAllFields() {
-            var uc = UserContext.newBuilder()
-                    .setUserId("trader-42")
-                    .setUsername("jdoe")
-                    .setEmail("jdoe@acme.com")
-                    .build();
+            var uc =
+                    UserContext.newBuilder()
+                            .setUserId("trader-42")
+                            .setUsername("jdoe")
+                            .setEmail("jdoe@acme.com")
+                            .build();
 
             assertThat(uc.getUserId()).isEqualTo("trader-42");
             assertThat(uc.getUsername()).isEqualTo("jdoe");
@@ -158,10 +147,7 @@ class CommonTypesProtoTest {
         @Test
         @DisplayName("should allow optional email to be absent")
         void shouldAllowAbsentEmail() {
-            var uc = UserContext.newBuilder()
-                    .setUserId("trader-1")
-                    .setUsername("admin")
-                    .build();
+            var uc = UserContext.newBuilder().setUserId("trader-1").setUsername("admin").build();
 
             assertThat(uc.hasEmail()).isFalse();
         }
@@ -174,10 +160,11 @@ class CommonTypesProtoTest {
         @Test
         @DisplayName("should support correlation_id and optional causation_id")
         void shouldSupportCorrelationFields() {
-            var cc = CorrelationContext.newBuilder()
-                    .setCorrelationId("corr-abc-123")
-                    .setCausationId("cause-xyz-789")
-                    .build();
+            var cc =
+                    CorrelationContext.newBuilder()
+                            .setCorrelationId("corr-abc-123")
+                            .setCausationId("cause-xyz-789")
+                            .build();
 
             assertThat(cc.getCorrelationId()).isEqualTo("corr-abc-123");
             assertThat(cc.hasCausationId()).isTrue();
@@ -213,10 +200,10 @@ class CommonTypesProtoTest {
         @Test
         @DisplayName("should have all five asset classes plus UNSPECIFIED")
         void shouldHaveAllValues() {
-            assertThat(AssetClass.values()).hasSize(
-                    // 5 asset classes + UNSPECIFIED + UNRECOGNIZED (protobuf adds this)
-                    7
-            );
+            assertThat(AssetClass.values())
+                    .hasSize(
+                            // 5 asset classes + UNSPECIFIED + UNRECOGNIZED (protobuf adds this)
+                            7);
             assertThat(AssetClass.ASSET_CLASS_FX.getNumber()).isEqualTo(1);
             assertThat(AssetClass.ASSET_CLASS_RATES.getNumber()).isEqualTo(2);
             assertThat(AssetClass.ASSET_CLASS_CREDIT.getNumber()).isEqualTo(3);

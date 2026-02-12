@@ -4,12 +4,13 @@ import java.util.concurrent.CompletableFuture;
 
 /**
  * Functional interface for a single health check component.
- * <p>
- * Implementations perform a lightweight probe of a dependency (database, cache,
- * message broker) and return the result asynchronously. The health check registry
- * aggregates multiple checks concurrently.
- * <p>
- * Example usage:
+ *
+ * <p>Implementations perform a lightweight probe of a dependency (database, cache, message broker)
+ * and return the result asynchronously. The health check registry aggregates multiple checks
+ * concurrently.
+ *
+ * <p>Example usage:
+ *
  * <pre>{@code
  * HealthCheck postgresCheck = () -> {
  *     long start = System.currentTimeMillis();

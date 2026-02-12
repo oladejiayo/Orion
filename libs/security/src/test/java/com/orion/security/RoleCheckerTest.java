@@ -1,19 +1,17 @@
 package com.orion.security;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import com.orion.security.testing.TestSecurityContextFactory;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
-import java.util.List;
-
-import static org.assertj.core.api.Assertions.assertThat;
-
 /**
  * Tests for RoleChecker (AC3: RBAC — role checking with hierarchy).
  *
- * WHY: Verify that RBAC checks respect the role hierarchy
- * (ADMIN implies TRADER, SALES implies TRADER, etc.).
+ * <p>WHY: Verify that RBAC checks respect the role hierarchy (ADMIN implies TRADER, SALES implies
+ * TRADER, etc.).
  */
 @DisplayName("US-01-04 AC3: RoleChecker")
 class RoleCheckerTest {

@@ -5,13 +5,10 @@ import java.util.List;
 /**
  * Result of validating an {@link EventEnvelope}.
  *
- * @param valid  true if validation passed with no errors
+ * @param valid true if validation passed with no errors
  * @param errors list of human-readable error messages (empty when valid)
  */
-public record ValidationResult(
-        boolean valid,
-        List<String> errors
-) {
+public record ValidationResult(boolean valid, List<String> errors) {
 
     /** Convenience factory for a successful validation. */
     public static ValidationResult ok() {

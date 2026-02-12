@@ -7,16 +7,20 @@
 ## US-01-01: Initialize Monorepo with Maven Multi-Module Build
 
 ### Business Context
+
 Orion is an institutional multi-asset liquidity & data platform. Before any services can be built, we need the **project skeleton** — the Maven multi-module monorepo that will host all backend microservices, shared libraries, frontend applications, and infrastructure code.
 
 ### Why Maven Multi-Module?
+
 The PRD specifies Java 21 + Spring Boot 3.x for all backend services. Maven multi-module is the standard approach for Java monorepos:
+
 - **Parent POM** defines shared dependency versions (Spring Boot BOM, test libraries, plugins)
 - **Child modules** inherit from parent, reducing duplication
 - **Reactor build** ensures correct build order based on inter-module dependencies
 - **`mvn verify`** from root builds and tests everything
 
 ### Reinterpretation of US-01-01
+
 The original user story was written with Nx/TypeScript tooling in mind. We reinterpret each acceptance criterion for the Java/Maven stack:
 
 | Original (Nx/TS) | Reinterpreted (Java/Maven) |
@@ -43,6 +47,7 @@ The original user story was written with Nx/TypeScript tooling in mind. We reint
 | AC5 | TypeScript config → Java config | Java 21, Spring Boot 3.x BOM, compiler plugin config |
 
 ### Key Decisions
+
 1. **Maven over Gradle** — PRD section 7.6.1 specifies Maven. Simpler XML-based config, wider Spring Boot documentation coverage.
 2. **Spring Boot BOM** — Use `spring-boot-starter-parent` as parent for dependency management.
 3. **Maven wrapper** — Include `mvnw`/`mvnw.cmd` so developers don't need Maven pre-installed.
@@ -55,9 +60,11 @@ The original user story was written with Nx/TypeScript tooling in mind. We reint
 ## US-01-07: Configure GitHub Actions CI Pipeline
 
 ### Business Context
+
 Before any production code lands on `main`, the team needs automated quality gates. US-01-07 creates the GitHub Actions CI pipeline that enforces build integrity, runs all tests, validates proto definitions, scans for dependency vulnerabilities, and produces Docker images — all triggered automatically on PRs and pushes.
 
 ### Reinterpretation of US-01-07
+
 The original story was written for Nx/TypeScript/Node.js tooling (npm ci, nx affected, buf lint, Dockerfile.node). We reinterpret every acceptance criterion for Java 21 / Maven / Spring Boot:
 
 | Original (Nx/TypeScript) | Reinterpreted (Java 21/Maven) |
@@ -103,6 +110,7 @@ services/
 ```
 
 ### Key Decisions
+
 1. **Reusable composite action** — `.github/actions/setup-java-maven/action.yml` sets up JDK 21 (Temurin) and Maven cache in one step. All 4 workflows reference it, eliminating duplication. Changes to Java version or cache strategy are made in one place.
 2. **Concurrency cancel-in-progress** — PR workflow uses `concurrency: group: pr-${{ github.event.pull_request.number }}` with `cancel-in-progress: true`. New pushes to the same PR cancel stale runs, saving runner minutes.
 3. **Trivy over OWASP Dependency-Check** — Trivy is faster, produces SARIF natively, and integrates with GitHub Security tab. OWASP dependency-check is heavy and slow for CI. Trivy's `fs` mode scans Maven POM dependency tree.
@@ -119,9 +127,11 @@ services/
 ## US-01-02: Create Docker Compose Local Development Environment
 
 ### Business Context
+
 Before any microservice can be developed, developers need a **local environment** that mirrors production infrastructure. This means running Kafka (message broker), PostgreSQL (database), and Redis (cache) locally — along with admin UIs for debugging. Without this, developers would need cloud access for every test, which is slow and expensive.
 
 ### Why Docker Compose?
+
 Docker Compose lets us define all infrastructure services in a single YAML file. One command (`docker compose up`) spins up everything. This gives every developer an identical environment regardless of their OS.
 
 ### Service Architecture (Local Dev)
@@ -188,6 +198,7 @@ spring:
 | AC6 | Documentation | Updated README, troubleshooting, port mapping, resource requirements |
 
 ### Key Decisions
+
 1. **Redpanda over Apache Kafka** — Lighter resource footprint for local dev; API-compatible with Kafka. Production will use AWS MSK or Azure Event Hubs.
 2. **PostgreSQL 15 Alpine** — Matches likely production version; Alpine image is smaller.
 3. **Redis 7 with AOF persistence** — `appendonly yes` for durability; `allkeys-lru` eviction for bounded memory.
@@ -201,11 +212,13 @@ spring:
 ## US-01-03: Setup Shared Event Model Library
 
 ### Business Context
+
 Orion is an **event-driven** platform. Every action — a trade executing, a quote arriving, a risk limit being breached — produces an **event** that is published to Kafka and consumed by other services. For this to work, every service must speak the same language: a canonical **event envelope** that wraps every domain event with standard metadata (IDs, timestamps, correlation, tenant isolation).
 
 This library (`orion-event-model`) is the first *real* Java code in the monorepo. It's a **pure domain library** with zero Spring dependencies — any Java project can use it.
 
 ### Reinterpretation of US-01-03
+
 The original user story was written with TypeScript/Nx in mind. We reinterpret for Java 21 + Maven:
 
 | Original (TypeScript) | Reinterpreted (Java 21) |
@@ -237,6 +250,7 @@ com.orion.eventmodel/
 ```
 
 ### Design Decisions
+
 1. **Java records** — `EventEnvelope<T>` and `EventEntity` are records: immutable, compact, auto-generated equals/hashCode/toString. Perfect for event data that should never be mutated after creation.
 2. **No Spring dependency** — This is a pure domain library. Only Jackson for JSON. Any Java project can use it, not just Spring Boot apps.
 3. **`Instant` for timestamps** — Type-safe, nanosecond precision, ISO 8601 serialization via Jackson's `JavaTimeModule`.
@@ -250,11 +264,13 @@ com.orion.eventmodel/
 ## US-01-04: Setup Shared Security Library
 
 ### Business Context
+
 Orion is a **multi-tenant** trading platform. Every API call and gRPC request must carry authentication (who is the caller?), authorization (what are they allowed to do?), and tenant isolation (which firm's data can they see?). Without a shared security library, every service would re-implement these checks differently, creating security gaps and inconsistencies.
 
 This library (`orion-security`) provides the **security vocabulary** — the records, enums, and pure-Java utilities that all services share. Actual JWT validation and Spring Security filter integration happen at the service layer (Spring Security Resource Server). This library stays framework-agnostic, just like `orion-event-model`.
 
 ### Reinterpretation of US-01-04
+
 The original story was written for TypeScript/Express.js. We reinterpret for Java 21:
 
 | Original (TypeScript/Express) | Reinterpreted (Java 21) |
@@ -300,6 +316,7 @@ com.orion.security/
 ```
 
 ### Design Decisions
+
 1. **Pure Java library — no Spring dependency** — Consistent with `orion-event-model`. Spring Security filter integration deferred to service stories. This keeps the library usable by any Java project.
 2. **Records for all value types** — `OrionSecurityContext`, `AuthenticatedUser`, `TenantContext`, `Entitlements`, `TradingLimits` are all immutable records. Thread-safe by design for concurrent trading workloads.
 3. **Role hierarchy via enum** — `ADMIN.implies(TRADER)` returns true. This avoids scattering hierarchy logic across services. The hierarchy is defined once in the enum.
@@ -314,11 +331,13 @@ com.orion.security/
 ## US-01-05: Setup Shared Observability Library
 
 ### Business Context
+
 Orion is a **distributed, event-driven** trading platform with multiple microservices communicating via gRPC and Kafka. When a trade request flows from the UI through the BFF, to the RFQ service, to the execution service, and finally to post-trade — debugging a failure anywhere in that chain requires **correlation**: the ability to trace a single request across all services using a shared correlation ID, structured logs, distributed traces, and metrics.
 
 This library (`orion-observability`) provides the shared **observability primitives** that every service will use. It's the telescope, the dashboard gauges, and the logbook that let operators see inside the running system. Without it, each service would invent its own logging format, metric naming, and correlation strategy — making production debugging nearly impossible.
 
 ### Reinterpretation of US-01-05
+
 The original story was written for TypeScript/Node.js (pino, prom-client, @opentelemetry/sdk-node, Express middleware). We reinterpret for Java 21:
 
 | Original (TypeScript) | Reinterpreted (Java 21) |
@@ -357,6 +376,7 @@ com.orion.observability/
 ```
 
 ### Design Decisions
+
 1. **Pure Java library — no Spring dependency** — Consistent with `orion-event-model` and `orion-security`. Micrometer and OpenTelemetry API are framework-agnostic Java libraries. Spring Boot Actuator, web filters, and gRPC interceptors are deferred to service-layer stories.
 2. **SLF4J MDC for correlation propagation** — MDC (Mapped Diagnostic Context) is the standard Java mechanism for per-thread log context. Every log statement automatically includes `correlationId`, `tenantId`, `userId` without explicit passing. Works with Logback, Log4j2, or any SLF4J backend.
 3. **Micrometer over raw Prometheus client** — Micrometer is Spring Boot's native metrics facade. It supports Prometheus, CloudWatch, Datadog, and others. The `MetricFactory` wrapper auto-includes `tenant` label on every metric for multi-tenant segmentation.
@@ -370,11 +390,13 @@ com.orion.observability/
 ## US-01-06: Setup Protobuf Definitions and Code Generation
 
 ### Business Context
+
 Orion services communicate via **gRPC** — a high-performance RPC framework that uses Protocol Buffers (Protobuf) as its interface definition language (IDL). Before any service can expose or consume a gRPC API, we need a **shared contract library** that defines every message type, enum, and service interface. This library (`orion-grpc-api`) is the single source of truth for all service-to-service communication contracts.
 
 Think of it as writing the **dictionary and grammar book** before anyone starts speaking the language. Every service — Market Data, RFQ, Execution, Post-Trade, Admin — must agree on the exact shape of requests and responses *before* any implementation begins.
 
 ### Reinterpretation of US-01-06
+
 The original story was written for TypeScript/Node.js with Buf CLI. We reinterpret for Java 21 + Maven:
 
 | Original (TypeScript/Buf) | Reinterpreted (Java 21/Maven) |
@@ -435,6 +457,7 @@ libs/grpc-api/
 | `orion.admin.v1` | `com.orion.admin.v1` | AdminServiceGrpc, InstrumentDetails, KillSwitch messages, etc. |
 
 ### Design Decisions
+
 1. **Maven module `libs/grpc-api`** — Keeps proto files + generated code in a standard Maven module. Other modules depend on `orion-grpc-api` as a regular Maven dependency. The `/proto/` root directory is kept as documentation reference.
 2. **`protobuf-maven-plugin` + `protoc-gen-grpc-java`** — Standard Java ecosystem tools. `protoc` compiles .proto → Java message classes; `protoc-gen-grpc-java` generates gRPC service stubs (ImplBase, Stub, BlockingStub). No Buf CLI needed.
 3. **`java_multiple_files = true`** — Each proto message becomes its own .java file instead of inner classes. IDE-friendly, easier imports, smaller compilation units.
@@ -443,3 +466,73 @@ libs/grpc-api/
 6. **Proto v1 versioning** — All definitions under `v1/` package. Breaking changes require a `v2/` directory with new package names. Within v1, only additive changes (new fields, new RPCs).
 7. **`optional` keyword for nullable fields** — Proto3 `optional` generates `hasXxx()` methods in Java. Used for fields that are genuinely optional (e.g., `rfq_id` on a trade, `tenant_name` on context).
 8. **Compiler warnings suppressed** — Generated protobuf code produces `-Xlint` warnings (unchecked casts, raw types). Module POM overrides compiler plugin with `-Xlint:none`.
+
+---
+
+## US-01-08: Setup Code Quality Tools and Standards
+
+### Business Context
+
+Code quality tooling is the invisible safety net that prevents style drift, enforces standards, and catches problems before they reach the repository. In a multi-developer platform like Orion, without automated formatting and linting, the codebase quickly devolves into inconsistent styles that cause merge conflicts and reduce readability.
+
+### Reinterpretation of US-01-08
+
+The original story was written for TypeScript/Nx tooling (ESLint, Prettier, Husky, commitlint). We reinterpret every acceptance criterion for Java 21 / Maven:
+
+| Original (TypeScript/Nx) | Reinterpreted (Java 21/Maven) |
+|---|---|
+| ESLint with custom rules | **Checkstyle** — Google Java Style with Orion customizations (120-char lines, naming, imports) |
+| Prettier for auto-formatting | **Spotless Maven Plugin** — Google Java Format (AOSP style), auto-format on `spotless:apply` |
+| Husky + lint-staged (pre-commit hooks) | **`.githooks/`** directory with shell scripts, activated via `git config core.hooksPath .githooks` |
+| commitlint (conventional commits) | **Shell regex validation** in `.githooks/commit-msg` — validates `type(scope): subject` pattern |
+| VS Code settings for TypeScript | **VS Code settings for Java** — `.vscode/settings.json` + `.vscode/extensions.json` |
+| EditorConfig | **Already present** from US-01-01, enhanced with proto file section |
+| *(no equivalent)* | **Maven Enforcer Plugin** — enforces Java 21 minimum, Maven 3.9 minimum, bans duplicate deps |
+
+### Tool Architecture
+
+```
+Build Lifecycle Quality Gates:
+┌─────────────────────────────────────────────────────────┐
+│  validate phase                                          │
+│    ├── maven-enforcer-plugin (Java 21, Maven 3.9)       │
+│    └── maven-checkstyle-plugin (build-tools/checkstyle.xml) │
+│                                                          │
+│  spotless:check (manual or -Pquality profile)            │
+│    └── Google Java Format (AOSP style)                   │
+│                                                          │
+│  Git hooks (.githooks/)                                  │
+│    ├── pre-commit → spotless:check                       │
+│    └── commit-msg → conventional commit regex validation │
+│                                                          │
+│  IDE integration                                         │
+│    ├── .vscode/settings.json → format on save            │
+│    ├── .vscode/extensions.json → team extension recs     │
+│    └── .editorconfig → charset, indent, line endings     │
+└─────────────────────────────────────────────────────────┘
+```
+
+### Acceptance Criteria Mapping
+
+| AC | Description | Deliverables |
+|---|---|---|
+| AC1 | Checkstyle config | `build-tools/checkstyle.xml` + `checkstyle-suppressions.xml`, `maven-checkstyle-plugin` in POM |
+| AC2 | Spotless formatting | `spotless-maven-plugin` with `googleJavaFormat` (AOSP), `quality` profile for CI |
+| AC3 | Git hooks | `.githooks/pre-commit` (Spotless check), `.githooks/commit-msg` (conventional commits), `.githooks/README.md` |
+| AC4 | Conventional commits | Regex: `^(feat\|fix\|docs\|style\|refactor\|perf\|test\|chore\|revert\|ci\|build)(\([a-z][a-z0-9-]*\))?: .{1,100}$` |
+| AC5 | VS Code settings | `.vscode/settings.json` (Java formatting), `.vscode/extensions.json` (team recommendations) |
+| AC6 | EditorConfig | Enhanced with `[*.proto]` section (2-space indent per Google style) |
+| AC+ | Maven Enforcer | `maven-enforcer-plugin` — `requireJavaVersion`, `requireMavenVersion`, `banDuplicatePomDependencyVersions` |
+
+### Key Decisions
+
+1. **Checkstyle over SpotBugs for initial setup** — Checkstyle catches style issues (naming, formatting, imports); SpotBugs catches bugs. Starting with style enforcement; bug detection can be added later.
+2. **Google Java Style as base** — Industry standard, well-documented, IDE-supported. Orion customizes: 120-char lines (wider for financial domain), static wildcard imports allowed (test assertions).
+3. **AOSP style (4-space indent) over Google style (2-space)** — More readable for complex financial domain code. Consistent with existing `.editorconfig` and Spring Boot conventions.
+4. **Spotless in profile, not default build** — Running `spotless:check` on every `mvn verify` would break existing unformatted code immediately. The `quality` profile (`-Pquality`) is opt-in for CI; developers use `spotless:apply` to auto-fix.
+5. **Shell-based commit-msg hook over commitlint** — No Node.js dependency required. Pure shell regex is simpler, faster, and works on any Unix-like system (Git Bash on Windows).
+6. **`.githooks/` directory over `.git/hooks/`** — Version-controlled hooks. Developers activate with `git config core.hooksPath .githooks`. README documents the one-time setup.
+7. **VS Code settings committed to Git** — `.gitignore` whitelists `!.vscode/settings.json` and `!.vscode/extensions.json`. Team-wide consistency without per-developer configuration drift.
+8. **Maven Enforcer Plugin applied to ALL modules** — Runs in `validate` phase of every module build. Prevents Java 8 or Maven 3.6 from being used accidentally.
+9. **Checkstyle suppressions for generated code** — Proto/gRPC generated code in `target/generated-sources/` is excluded from all checks. Test code gets relaxed rules (method names, magic numbers).
+10. **`banDuplicatePomDependencyVersions` over `banDuplicateDependencies`** — Built-in enforcer rule in Maven 3.5+. Catches duplicate dependency declarations in POM which cause classloader conflicts.

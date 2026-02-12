@@ -1,0 +1,207 @@
+<?xml version="1.0"?>
+<!DOCTYPE module PUBLIC
+        "-//Checkstyle//DTD Checkstyle Configuration 1.3//EN"
+        "https://checkstyle.org/dtds/configuration_1_3.dtd">
+
+<!--
+    Orion Platform — Checkstyle Configuration (US-01-08)
+
+    Based on Google Java Style Guide with Orion-specific customizations.
+    This file is referenced by maven-checkstyle-plugin in the parent POM.
+
+    WHY: Enforces consistent coding standards across all Java modules.
+    Equivalent to ESLint in the TypeScript world.
+
+    Key customizations from Google defaults:
+    - Line length increased to 120 (trading domain has long class names)
+    - Suppression file handles generated protobuf code
+    - Javadoc checks relaxed for test classes (via suppressions)
+-->
+<module name="Checker">
+    <property name="charset" value="UTF-8"/>
+    <property name="severity" value="warning"/>
+    <property name="fileExtensions" value="java"/>
+
+    <!-- ================================================================ -->
+    <!-- Suppressions — exclude generated code and test-specific patterns -->
+    <!-- ================================================================ -->
+    <module name="SuppressionFilter">
+        <property name="file" value="${config_loc}/checkstyle-suppressions.xml"/>
+        <property name="optional" value="true"/>
+    </module>
+
+    <!-- ================================================================ -->
+    <!-- File-Level Checks                                                -->
+    <!-- ================================================================ -->
+
+    <!-- Ensure files end with a newline (matches .editorconfig) -->
+    <module name="NewlineAtEndOfFile">
+        <property name="lineSeparator" value="lf"/>
+    </module>
+
+    <!-- Limit file length to prevent god classes -->
+    <module name="FileLength">
+        <property name="max" value="500"/>
+        <property name="fileExtensions" value="java"/>
+    </module>
+
+    <!-- No tab characters — spaces only (matches .editorconfig indent_style=space) -->
+    <module name="FileTabCharacter">
+        <property name="eachLine" value="true"/>
+    </module>
+
+    <!-- Line length: 120 chars (wider than Google's 100 for financial domain verbosity) -->
+    <module name="LineLength">
+        <property name="max" value="120"/>
+        <!-- Allow long import statements and URLs in comments -->
+        <property name="ignorePattern" value="^(package|import) .*|^ *\* .*https?://.*"/>
+    </module>
+
+    <!-- ================================================================ -->
+    <!-- TreeWalker — Code-Level Checks                                   -->
+    <!-- ================================================================ -->
+    <module name="TreeWalker">
+
+        <!-- ============================================================ -->
+        <!-- Naming Conventions                                           -->
+        <!-- ============================================================ -->
+
+        <!-- Type names: UpperCamelCase -->
+        <module name="TypeName">
+            <property name="format" value="^[A-Z][a-zA-Z0-9]*$"/>
+            <message key="name.invalidPattern" value="Type name ''{0}'' must match ''{1}''"/>
+        </module>
+
+        <!-- Method names: lowerCamelCase -->
+        <module name="MethodName">
+            <property name="format" value="^[a-z][a-zA-Z0-9]*$"/>
+            <message key="name.invalidPattern" value="Method name ''{0}'' must match ''{1}''"/>
+        </module>
+
+        <!-- Member variable names: lowerCamelCase (no Hungarian notation) -->
+        <module name="MemberName">
+            <property name="format" value="^[a-z][a-zA-Z0-9]*$"/>
+        </module>
+
+        <!-- Parameter names: lowerCamelCase -->
+        <module name="ParameterName">
+            <property name="format" value="^[a-z][a-zA-Z0-9]*$"/>
+        </module>
+
+        <!-- Local variable names: lowerCamelCase -->
+        <module name="LocalVariableName">
+            <property name="format" value="^[a-z][a-zA-Z0-9]*$"/>
+        </module>
+
+        <!-- Constant names: UPPER_SNAKE_CASE -->
+        <module name="ConstantName">
+            <property name="format" value="^[A-Z][A-Z0-9]*(_[A-Z0-9]+)*$"/>
+        </module>
+
+        <!-- Package names: lowercase with dots -->
+        <module name="PackageName">
+            <property name="format" value="^[a-z]+(\.[a-z][a-z0-9]*)*$"/>
+        </module>
+
+        <!-- ============================================================ -->
+        <!-- Import Checks                                                -->
+        <!-- ============================================================ -->
+
+        <!-- No wildcard imports (explicit imports are clearer) -->
+        <module name="AvoidStarImport">
+            <!-- Allow static wildcard for test assertions (assertThat, etc.) -->
+            <property name="allowStaticMemberImports" value="true"/>
+        </module>
+
+        <!-- No redundant imports -->
+        <module name="RedundantImport"/>
+
+        <!-- No unused imports -->
+        <module name="UnusedImports"/>
+
+        <!-- ============================================================ -->
+        <!-- Code Style                                                   -->
+        <!-- ============================================================ -->
+
+        <!-- Opening brace on same line (K&R style) -->
+        <module name="LeftCurly">
+            <property name="option" value="eol"/>
+        </module>
+
+        <!-- Closing brace placement -->
+        <module name="RightCurly">
+            <property name="option" value="same"/>
+        </module>
+
+        <!-- Require braces for all control structures (no single-line if/for) -->
+        <module name="NeedBraces"/>
+
+        <!-- One statement per line -->
+        <module name="OneStatementPerLine"/>
+
+        <!-- No multiple variable declarations on one line -->
+        <module name="MultipleVariableDeclarations"/>
+
+        <!-- ============================================================ -->
+        <!-- Coding Best Practices                                        -->
+        <!-- ============================================================ -->
+
+        <!-- Avoid empty blocks (except catch with comment) -->
+        <module name="EmptyBlock">
+            <property name="option" value="TEXT"/>
+            <property name="tokens" value="LITERAL_TRY, LITERAL_FINALLY, LITERAL_IF, LITERAL_ELSE, LITERAL_SWITCH"/>
+        </module>
+
+        <!-- Fall-through in switch must be commented -->
+        <module name="FallThrough"/>
+
+        <!-- No magic numbers (except -1, 0, 1, 2 which are common) -->
+        <module name="MagicNumber">
+            <property name="ignoreNumbers" value="-1, 0, 1, 2"/>
+            <property name="ignoreAnnotation" value="true"/>
+            <property name="ignoreFieldDeclaration" value="true"/>
+            <property name="ignoreHashCodeMethod" value="true"/>
+        </module>
+
+        <!-- Equals must be symmetric (use Objects.equals) -->
+        <module name="EqualsHashCode"/>
+
+        <!-- No assignments in sub-expressions (prevents if (x = y) bugs) -->
+        <module name="InnerAssignment"/>
+
+        <!-- Modifier order: public static final (Java convention) -->
+        <module name="ModifierOrder"/>
+
+        <!-- Redundant modifiers (e.g., public on interface methods) -->
+        <module name="RedundantModifier"/>
+
+        <!-- ============================================================ -->
+        <!-- Whitespace                                                   -->
+        <!-- ============================================================ -->
+
+        <!-- Whitespace after comma, semicolon, etc. -->
+        <module name="WhitespaceAfter"/>
+
+        <!-- Whitespace around operators (+, -, =, etc.) -->
+        <module name="WhitespaceAround">
+            <property name="allowEmptyConstructors" value="true"/>
+            <property name="allowEmptyMethods" value="true"/>
+            <property name="allowEmptyTypes" value="true"/>
+        </module>
+
+        <!-- No whitespace after unary operators (!, ~, ++, --) -->
+        <module name="NoWhitespaceAfter"/>
+
+        <!-- No whitespace before comma, semicolon, etc. -->
+        <module name="NoWhitespaceBefore"/>
+
+        <!-- Generic whitespace (no space inside <> for generics) -->
+        <module name="GenericWhitespace"/>
+
+        <!-- Empty line separator between class members -->
+        <module name="EmptyLineSeparator">
+            <property name="allowNoEmptyLineBetweenFields" value="true"/>
+            <property name="allowMultipleEmptyLines" value="false"/>
+        </module>
+    </module>
+</module>

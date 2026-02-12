@@ -1,19 +1,19 @@
 package com.orion.security;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
 import com.orion.security.testing.TestSecurityContextFactory;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.assertj.core.api.Assertions.assertThatCode;
-
 /**
  * Tests for TenantIsolationEnforcer (AC2: Tenant Context — isolation enforcement).
  *
- * WHY: Verify that cross-tenant access is blocked with TenantMismatchException,
- * and same-tenant access passes silently.
+ * <p>WHY: Verify that cross-tenant access is blocked with TenantMismatchException, and same-tenant
+ * access passes silently.
  */
 @DisplayName("US-01-04 AC2: TenantIsolationEnforcer")
 class TenantIsolationEnforcerTest {

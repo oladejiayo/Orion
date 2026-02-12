@@ -1,0 +1,36 @@
+<?xml version="1.0"?>
+<!DOCTYPE suppressions PUBLIC
+        "-//Checkstyle//DTD SuppressionFilter Configuration 1.2//EN"
+        "https://checkstyle.org/dtds/suppressions_1_2.dtd">
+
+<!--
+    Orion Platform — Checkstyle Suppressions (US-01-08)
+
+    WHY: Generated protobuf code and certain test patterns don't conform
+    to our coding standards, and that's okay. These suppressions prevent
+    false positives from breaking the build.
+-->
+<suppressions>
+    <!-- ================================================================ -->
+    <!-- Generated Protobuf/gRPC code — protoc output is not hand-written -->
+    <!-- ================================================================ -->
+    <suppress files="target[\\/]generated-sources[\\/]" checks=".*"/>
+    <suppress files="target[\\/]generated-test-sources[\\/]" checks=".*"/>
+
+    <!-- ================================================================ -->
+    <!-- Test classes — relaxed rules for readability                     -->
+    <!-- ================================================================ -->
+    <!-- Test method names can use underscores for readability: should_return_valid_when_present -->
+    <suppress files="src[\\/]test[\\/]" checks="MethodName"/>
+
+    <!-- Magic numbers are common in test assertions (expected values) -->
+    <suppress files="src[\\/]test[\\/]" checks="MagicNumber"/>
+
+    <!-- Test files can be longer (many test methods per class) -->
+    <suppress files="src[\\/]test[\\/]" checks="FileLength"/>
+
+    <!-- ================================================================ -->
+    <!-- Module-info files (if used later) -->
+    <!-- ================================================================ -->
+    <suppress files="module-info\.java" checks=".*"/>
+</suppressions>

@@ -1,18 +1,15 @@
 package com.orion.security;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
-import java.util.EnumSet;
-import java.util.Set;
-
-import static org.assertj.core.api.Assertions.assertThat;
-
 /**
  * Tests for Role enum (AC3: RBAC — role definitions and hierarchy).
  *
- * WHY: Verify all PRD roles exist, hierarchy is correct, and fromString lookup works.
+ * <p>WHY: Verify all PRD roles exist, hierarchy is correct, and fromString lookup works.
  */
 @DisplayName("US-01-04 AC3: Role enum")
 class RoleTest {
@@ -89,8 +86,7 @@ class RoleTest {
         void impliedRolesCorrect() {
             assertThat(Role.ADMIN.impliedRoles())
                     .containsExactlyInAnyOrder(Role.TRADER, Role.SALES, Role.RISK, Role.ANALYST);
-            assertThat(Role.SALES.impliedRoles())
-                    .containsExactly(Role.TRADER);
+            assertThat(Role.SALES.impliedRoles()).containsExactly(Role.TRADER);
             assertThat(Role.TRADER.impliedRoles()).isEmpty();
             assertThat(Role.RISK.impliedRoles()).isEmpty();
             assertThat(Role.ANALYST.impliedRoles()).isEmpty();

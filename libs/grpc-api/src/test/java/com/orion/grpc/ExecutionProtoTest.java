@@ -1,5 +1,7 @@
 package com.orion.grpc;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import com.orion.common.v1.CorrelationContext;
 import com.orion.common.v1.Decimal;
 import com.orion.common.v1.PaginationRequest;
@@ -8,7 +10,6 @@ import com.orion.common.v1.Side;
 import com.orion.common.v1.TenantContext;
 import com.orion.common.v1.Timestamp;
 import com.orion.execution.v1.ExecutionServiceGrpc;
-import com.orion.execution.v1.GetTradeRequest;
 import com.orion.execution.v1.ListTradesRequest;
 import com.orion.execution.v1.ListTradesResponse;
 import com.orion.execution.v1.TradeDetails;
@@ -17,11 +18,9 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
-import static org.assertj.core.api.Assertions.assertThat;
-
 /**
- * Verifies the generated Execution service proto messages, trade status enum,
- * and service descriptor.
+ * Verifies the generated Execution service proto messages, trade status enum, and service
+ * descriptor.
  */
 @DisplayName("Execution Proto")
 class ExecutionProtoTest {
@@ -69,22 +68,24 @@ class ExecutionProtoTest {
         @Test
         @DisplayName("should build full trade with all fields")
         void shouldBuildFullTrade() {
-            var trade = TradeDetails.newBuilder()
-                    .setTradeId("trade-001")
-                    .setInstrumentId("EUR/USD")
-                    .setSide(Side.SIDE_BUY)
-                    .setPrice(Decimal.newBuilder().setValue("1.0850"))
-                    .setQuantity(Decimal.newBuilder().setValue("1000000"))
-                    .setNotional(Decimal.newBuilder().setValue("1085000"))
-                    .setStatus(TradeStatus.TRADE_STATUS_EXECUTED)
-                    .setRfqId("rfq-001")
-                    .setCounterpartyId("lp-citi")
-                    .setCounterpartyName("Citibank")
-                    .setTraderUserId("trader-42")
-                    .setExecutedAt(Timestamp.newBuilder().setSeconds(1_700_000_000L))
-                    .setTenant(TenantContext.newBuilder().setTenantId("acme-corp"))
-                    .setCorrelation(CorrelationContext.newBuilder().setCorrelationId("corr-789"))
-                    .build();
+            var trade =
+                    TradeDetails.newBuilder()
+                            .setTradeId("trade-001")
+                            .setInstrumentId("EUR/USD")
+                            .setSide(Side.SIDE_BUY)
+                            .setPrice(Decimal.newBuilder().setValue("1.0850"))
+                            .setQuantity(Decimal.newBuilder().setValue("1000000"))
+                            .setNotional(Decimal.newBuilder().setValue("1085000"))
+                            .setStatus(TradeStatus.TRADE_STATUS_EXECUTED)
+                            .setRfqId("rfq-001")
+                            .setCounterpartyId("lp-citi")
+                            .setCounterpartyName("Citibank")
+                            .setTraderUserId("trader-42")
+                            .setExecutedAt(Timestamp.newBuilder().setSeconds(1_700_000_000L))
+                            .setTenant(TenantContext.newBuilder().setTenantId("acme-corp"))
+                            .setCorrelation(
+                                    CorrelationContext.newBuilder().setCorrelationId("corr-789"))
+                            .build();
 
             assertThat(trade.getTradeId()).isEqualTo("trade-001");
             assertThat(trade.getSide()).isEqualTo(Side.SIDE_BUY);
@@ -96,11 +97,12 @@ class ExecutionProtoTest {
         @Test
         @DisplayName("should allow rfq_id to be absent for non-RFQ trades")
         void shouldAllowAbsentRfqId() {
-            var trade = TradeDetails.newBuilder()
-                    .setTradeId("trade-002")
-                    .setInstrumentId("US10Y")
-                    .setStatus(TradeStatus.TRADE_STATUS_EXECUTED)
-                    .build();
+            var trade =
+                    TradeDetails.newBuilder()
+                            .setTradeId("trade-002")
+                            .setInstrumentId("US10Y")
+                            .setStatus(TradeStatus.TRADE_STATUS_EXECUTED)
+                            .build();
 
             // rfq_id is optional — not present for CLOB-originated trades
             assertThat(trade.hasRfqId()).isFalse();
@@ -114,14 +116,16 @@ class ExecutionProtoTest {
         @Test
         @DisplayName("should build filtered list request")
         void shouldBuildFilteredRequest() {
-            var req = ListTradesRequest.newBuilder()
-                    .setTenant(TenantContext.newBuilder().setTenantId("acme-corp"))
-                    .setPagination(PaginationRequest.newBuilder().setPage(1).setPageSize(50))
-                    .setInstrumentId("EUR/USD")
-                    .addStatuses(TradeStatus.TRADE_STATUS_EXECUTED)
-                    .addStatuses(TradeStatus.TRADE_STATUS_SETTLED)
-                    .setSide(Side.SIDE_BUY)
-                    .build();
+            var req =
+                    ListTradesRequest.newBuilder()
+                            .setTenant(TenantContext.newBuilder().setTenantId("acme-corp"))
+                            .setPagination(
+                                    PaginationRequest.newBuilder().setPage(1).setPageSize(50))
+                            .setInstrumentId("EUR/USD")
+                            .addStatuses(TradeStatus.TRADE_STATUS_EXECUTED)
+                            .addStatuses(TradeStatus.TRADE_STATUS_SETTLED)
+                            .setSide(Side.SIDE_BUY)
+                            .build();
 
             assertThat(req.hasInstrumentId()).isTrue();
             assertThat(req.getStatusesList()).hasSize(2);
@@ -131,13 +135,19 @@ class ExecutionProtoTest {
         @Test
         @DisplayName("should build list response with pagination")
         void shouldBuildListResponse() {
-            var resp = ListTradesResponse.newBuilder()
-                    .addTrades(TradeDetails.newBuilder()
-                            .setTradeId("trade-001")
-                            .setStatus(TradeStatus.TRADE_STATUS_EXECUTED))
-                    .setPagination(PaginationResponse.newBuilder()
-                            .setPage(1).setPageSize(50).setTotalItems(1).setTotalPages(1))
-                    .build();
+            var resp =
+                    ListTradesResponse.newBuilder()
+                            .addTrades(
+                                    TradeDetails.newBuilder()
+                                            .setTradeId("trade-001")
+                                            .setStatus(TradeStatus.TRADE_STATUS_EXECUTED))
+                            .setPagination(
+                                    PaginationResponse.newBuilder()
+                                            .setPage(1)
+                                            .setPageSize(50)
+                                            .setTotalItems(1)
+                                            .setTotalPages(1))
+                            .build();
 
             assertThat(resp.getTradesList()).hasSize(1);
             assertThat(resp.getPagination().getTotalItems()).isEqualTo(1);
@@ -151,15 +161,16 @@ class ExecutionProtoTest {
         @Test
         @DisplayName("should round-trip TradeDetails")
         void shouldRoundTrip() throws Exception {
-            var trade = TradeDetails.newBuilder()
-                    .setTradeId("trade-001")
-                    .setInstrumentId("GBP/USD")
-                    .setSide(Side.SIDE_SELL)
-                    .setPrice(Decimal.newBuilder().setValue("1.2600"))
-                    .setQuantity(Decimal.newBuilder().setValue("500000"))
-                    .setStatus(TradeStatus.TRADE_STATUS_SETTLED)
-                    .setSettledAt(Timestamp.newBuilder().setSeconds(1_700_100_000L))
-                    .build();
+            var trade =
+                    TradeDetails.newBuilder()
+                            .setTradeId("trade-001")
+                            .setInstrumentId("GBP/USD")
+                            .setSide(Side.SIDE_SELL)
+                            .setPrice(Decimal.newBuilder().setValue("1.2600"))
+                            .setQuantity(Decimal.newBuilder().setValue("500000"))
+                            .setStatus(TradeStatus.TRADE_STATUS_SETTLED)
+                            .setSettledAt(Timestamp.newBuilder().setSeconds(1_700_100_000L))
+                            .build();
 
             var parsed = TradeDetails.parseFrom(trade.toByteArray());
             assertThat(parsed).isEqualTo(trade);

@@ -3,6 +3,7 @@
 This file tracks the status of all user stories across epics.
 
 **Status Legend**
+
 - `Todo` – Not yet started
 - `In Progress` – Actively being worked on
 - `Blocked` – Cannot proceed due to dependency or issue
@@ -141,7 +142,7 @@ Update the `Status` column as work progresses. If you prefer, you can also add a
 | US-01-11 | epic-01-project-scaffolding | US-01-11-development-documentation.md | Todo |
 | US-01-10 | epic-01-project-scaffolding | US-01-10-database-migrations.md | Todo |
 | US-01-09 | epic-01-project-scaffolding | US-01-09-base-service-template.md | Todo |
-| US-01-08 | epic-01-project-scaffolding | US-01-08-code-quality-tools.md | Todo |
+| US-01-08 | epic-01-project-scaffolding | US-01-08-code-quality-tools.md | Done |
 | US-01-07 | epic-01-project-scaffolding | US-01-07-github-actions-ci.md | Done |
 | US-01-06 | epic-01-project-scaffolding | US-01-06-protobuf-definitions.md | Done |
 | US-01-05 | epic-01-project-scaffolding | US-01-05-shared-observability-library.md | Done |

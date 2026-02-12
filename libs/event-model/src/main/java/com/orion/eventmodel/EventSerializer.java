@@ -5,14 +5,13 @@ import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
-
 import java.util.Optional;
 
 /**
  * JSON serialization and deserialization for {@link EventEnvelope}.
- * <p>
- * WHY Jackson: Spring Boot's default JSON library. The {@code JavaTimeModule}
- * handles {@code Instant} ↔ ISO 8601 string conversion automatically.
+ *
+ * <p>WHY Jackson: Spring Boot's default JSON library. The {@code JavaTimeModule} handles {@code
+ * Instant} ↔ ISO 8601 string conversion automatically.
  */
 public final class EventSerializer {
 
@@ -37,30 +36,30 @@ public final class EventSerializer {
         try {
             return MAPPER.writeValueAsString(event);
         } catch (JsonProcessingException e) {
-            throw new EventSerializationException("Failed to serialize event: " + event.eventId(), e);
+            throw new EventSerializationException(
+                    "Failed to serialize event: " + event.eventId(), e);
         }
     }
 
     /**
      * Deserializes a JSON string to an event envelope with a known payload type.
      *
-     * @param json        the JSON string
+     * @param json the JSON string
      * @param payloadType the class of the payload
      * @throws EventSerializationException if deserialization fails or JSON is malformed
      */
     public static <T> EventEnvelope<T> deserialize(String json, Class<T> payloadType) {
         try {
-            JavaType type = MAPPER.getTypeFactory()
-                    .constructParametricType(EventEnvelope.class, payloadType);
+            JavaType type =
+                    MAPPER.getTypeFactory()
+                            .constructParametricType(EventEnvelope.class, payloadType);
             return MAPPER.readValue(json, type);
         } catch (JsonProcessingException e) {
             throw new EventSerializationException("Failed to deserialize event", e);
         }
     }
 
-    /**
-     * Safely deserializes, returning empty on failure.
-     */
+    /** Safely deserializes, returning empty on failure. */
     public static <T> Optional<EventEnvelope<T>> tryDeserialize(String json, Class<T> payloadType) {
         try {
             return Optional.of(deserialize(json, payloadType));
@@ -74,9 +73,7 @@ public final class EventSerializer {
         return MAPPER;
     }
 
-    /**
-     * Exception thrown when event serialization/deserialization fails.
-     */
+    /** Exception thrown when event serialization/deserialization fails. */
     public static class EventSerializationException extends RuntimeException {
         public EventSerializationException(String message, Throwable cause) {
             super(message, cause);

@@ -1,24 +1,20 @@
 package com.orion.observability;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-import static org.assertj.core.api.Assertions.assertThat;
-
-/**
- * Tests for {@link HealthStatus} enum.
- */
+/** Tests for {@link HealthStatus} enum. */
 @DisplayName("HealthStatus")
 class HealthStatusTest {
 
     @Test
     @DisplayName("should have three values: HEALTHY, DEGRADED, UNHEALTHY")
     void shouldHaveThreeValues() {
-        assertThat(HealthStatus.values()).containsExactly(
-                HealthStatus.HEALTHY,
-                HealthStatus.DEGRADED,
-                HealthStatus.UNHEALTHY
-        );
+        assertThat(HealthStatus.values())
+                .containsExactly(
+                        HealthStatus.HEALTHY, HealthStatus.DEGRADED, HealthStatus.UNHEALTHY);
     }
 
     @Test

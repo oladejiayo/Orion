@@ -1,18 +1,17 @@
 package com.orion.observability.testing;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import com.orion.observability.ComponentHealth;
 import com.orion.observability.HealthStatus;
+import java.util.concurrent.ExecutionException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
-import java.util.concurrent.ExecutionException;
-
-import static org.assertj.core.api.Assertions.assertThat;
-
 /**
- * Tests for {@link InMemoryHealthCheck} — validates controllable health
- * status transitions and result reporting.
+ * Tests for {@link InMemoryHealthCheck} — validates controllable health status transitions and
+ * result reporting.
  */
 @DisplayName("InMemoryHealthCheck")
 class InMemoryHealthCheckTest {
@@ -75,9 +74,7 @@ class InMemoryHealthCheckTest {
         @Test
         @DisplayName("should support fluent API")
         void shouldSupportFluentApi() throws ExecutionException, InterruptedException {
-            var check = new InMemoryHealthCheck("redis")
-                    .setUnhealthy("timeout")
-                    .setLatencyMs(500);
+            var check = new InMemoryHealthCheck("redis").setUnhealthy("timeout").setLatencyMs(500);
 
             ComponentHealth health = check.check().get();
             assertThat(health.status()).isEqualTo(HealthStatus.UNHEALTHY);

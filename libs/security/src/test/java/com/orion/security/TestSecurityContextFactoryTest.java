@@ -1,19 +1,18 @@
 package com.orion.security;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import com.orion.security.testing.TestSecurityContextFactory;
+import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
-import java.util.List;
-
-import static org.assertj.core.api.Assertions.assertThat;
-
 /**
  * Tests for TestSecurityContextFactory (AC8: Testing utilities).
  *
- * WHY: Verify that test factories produce valid, customizable security contexts
- * that other modules can use in their test suites.
+ * <p>WHY: Verify that test factories produce valid, customizable security contexts that other
+ * modules can use in their test suites.
  */
 @DisplayName("US-01-04 AC8: TestSecurityContextFactory")
 class TestSecurityContextFactoryTest {
@@ -78,10 +77,12 @@ class TestSecurityContextFactoryTest {
         @Test
         @DisplayName("creates a fully customized context")
         void fullyCustomized() {
-            var ctx = TestSecurityContextFactory.create(
-                    "custom-user", "custom-tenant",
-                    List.of(Role.PLATFORM), Entitlements.defaults()
-            );
+            var ctx =
+                    TestSecurityContextFactory.create(
+                            "custom-user",
+                            "custom-tenant",
+                            List.of(Role.PLATFORM),
+                            Entitlements.defaults());
             assertThat(ctx.user().userId()).isEqualTo("custom-user");
             assertThat(ctx.tenant().tenantId()).isEqualTo("custom-tenant");
             assertThat(ctx.roles()).containsExactly(Role.PLATFORM);

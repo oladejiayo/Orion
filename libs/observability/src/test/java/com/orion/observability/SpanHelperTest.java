@@ -1,5 +1,8 @@
 package com.orion.observability;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
 import io.opentelemetry.api.common.AttributeKey;
 import io.opentelemetry.api.trace.SpanKind;
 import io.opentelemetry.api.trace.StatusCode;
@@ -9,24 +12,20 @@ import io.opentelemetry.sdk.testing.exporter.InMemorySpanExporter;
 import io.opentelemetry.sdk.trace.SdkTracerProvider;
 import io.opentelemetry.sdk.trace.data.SpanData;
 import io.opentelemetry.sdk.trace.export.SimpleSpanProcessor;
+import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
-import java.util.List;
-import java.util.Map;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-
 /**
- * Tests for {@link SpanHelper} — validates span creation, correlation context
- * attachment, error recording, and the withSpan helper.
- * <p>
- * Uses {@link InMemorySpanExporter} directly (rather than OpenTelemetryExtension)
- * for reliable span collection in nested JUnit 5 test classes.
+ * Tests for {@link SpanHelper} — validates span creation, correlation context attachment, error
+ * recording, and the withSpan helper.
+ *
+ * <p>Uses {@link InMemorySpanExporter} directly (rather than OpenTelemetryExtension) for reliable
+ * span collection in nested JUnit 5 test classes.
  */
 @DisplayName("SpanHelper")
 class SpanHelperTest {
@@ -37,12 +36,12 @@ class SpanHelperTest {
     @BeforeEach
     void setUp() {
         spanExporter = InMemorySpanExporter.create();
-        SdkTracerProvider tracerProvider = SdkTracerProvider.builder()
-                .addSpanProcessor(SimpleSpanProcessor.create(spanExporter))
-                .build();
-        OpenTelemetrySdk otelSdk = OpenTelemetrySdk.builder()
-                .setTracerProvider(tracerProvider)
-                .build();
+        SdkTracerProvider tracerProvider =
+                SdkTracerProvider.builder()
+                        .addSpanProcessor(SimpleSpanProcessor.create(spanExporter))
+                        .build();
+        OpenTelemetrySdk otelSdk =
+                OpenTelemetrySdk.builder().setTracerProvider(tracerProvider).build();
         Tracer tracer = otelSdk.getTracer("test-tracer");
         spanHelper = new SpanHelper(tracer);
     }
@@ -92,11 +91,15 @@ class SpanHelperTest {
         @Test
         @DisplayName("should record error on exception and re-throw")
         void shouldRecordErrorOnException() {
-            assertThatThrownBy(() ->
-                    spanHelper.withSpan("failing-operation", () -> {
-                        throw new RuntimeException("test error");
-                    })
-            ).isInstanceOf(RuntimeException.class).hasMessage("test error");
+            assertThatThrownBy(
+                            () ->
+                                    spanHelper.withSpan(
+                                            "failing-operation",
+                                            () -> {
+                                                throw new RuntimeException("test error");
+                                            }))
+                    .isInstanceOf(RuntimeException.class)
+                    .hasMessage("test error");
 
             List<SpanData> spans = spanExporter.getFinishedSpanItems();
             assertThat(spans).hasSize(1);
@@ -119,10 +122,8 @@ class SpanHelperTest {
             var attributes = spans.get(0).getAttributes();
             assertThat(attributes.get(AttributeKey.stringKey("correlation.id")))
                     .isEqualTo("corr-abc");
-            assertThat(attributes.get(AttributeKey.stringKey("tenant.id")))
-                    .isEqualTo("tenant-xyz");
-            assertThat(attributes.get(AttributeKey.stringKey("user.id")))
-                    .isEqualTo("user-42");
+            assertThat(attributes.get(AttributeKey.stringKey("tenant.id"))).isEqualTo("tenant-xyz");
+            assertThat(attributes.get(AttributeKey.stringKey("user.id"))).isEqualTo("user-42");
         }
 
         @Test
@@ -154,13 +155,15 @@ class SpanHelperTest {
         @Test
         @DisplayName("should set custom attributes")
         void shouldSetCustomAttributes() throws Exception {
-            spanHelper.withSpan("attributed-op", SpanKind.INTERNAL,
-                    Map.of("custom.key", "custom-value"), () -> "ok");
+            spanHelper.withSpan(
+                    "attributed-op",
+                    SpanKind.INTERNAL,
+                    Map.of("custom.key", "custom-value"),
+                    () -> "ok");
 
             List<SpanData> spans = spanExporter.getFinishedSpanItems();
             assertThat(spans).hasSize(1);
-            assertThat(spans.get(0).getAttributes()
-                    .get(AttributeKey.stringKey("custom.key")))
+            assertThat(spans.get(0).getAttributes().get(AttributeKey.stringKey("custom.key")))
                     .isEqualTo("custom-value");
         }
     }
@@ -172,9 +175,11 @@ class SpanHelperTest {
         @Test
         @DisplayName("should create span for void operation")
         void shouldCreateSpanForVoidOp() {
-            spanHelper.withSpan("void-op", () -> {
-                // no-op
-            });
+            spanHelper.withSpan(
+                    "void-op",
+                    () -> {
+                        // no-op
+                    });
 
             List<SpanData> spans = spanExporter.getFinishedSpanItems();
             assertThat(spans).hasSize(1);
@@ -185,11 +190,17 @@ class SpanHelperTest {
         @Test
         @DisplayName("should propagate runtime exceptions from runnable")
         void shouldPropagateRuntimeExceptions() {
-            assertThatThrownBy(() ->
-                    spanHelper.withSpan("failing-void-op", (Runnable) () -> {
-                        throw new IllegalStateException("runnable failure");
-                    })
-            ).isInstanceOf(IllegalStateException.class).hasMessage("runnable failure");
+            assertThatThrownBy(
+                            () ->
+                                    spanHelper.withSpan(
+                                            "failing-void-op",
+                                            (Runnable)
+                                                    () -> {
+                                                        throw new IllegalStateException(
+                                                                "runnable failure");
+                                                    }))
+                    .isInstanceOf(IllegalStateException.class)
+                    .hasMessage("runnable failure");
         }
     }
 }
