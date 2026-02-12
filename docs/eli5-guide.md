@@ -50,31 +50,18 @@ Without this structure, developers would be throwing code into random folders li
 
 #### How It Works (The Flow)
 
-```
-                  🚀 Developer clones repo
-                           │
-                           ▼
-               ┌───────────────────────┐
-               │    ./mvnw verify      │ ◄─── Run this one command
-               └───────────┬───────────┘
-                           │
-                           ▼
-               ┌───────────────────────┐
-               │   Maven reads the     │
-               │   root pom.xml        │ ◄─── Finds the master blueprint
-               └───────────┬───────────┘
-                           │
-                           ▼
-               ┌───────────────────────┐
-               │   Builds each module  │
-               │   in dependency order  │ ◄─── Currently: verification tests
-               └───────────┬───────────┘
-                           │
-                           ▼
-               ┌───────────────────────┐
-               │   48 tests run        │
-               │   All ✅ pass          │ ◄─── Structure is correct!
-               └───────────────────────┘
+```mermaid
+flowchart TD
+    A["🚀 Developer clones repo"] --> B["./mvnw verify\n<i>Run this one command</i>"]
+    B --> C["📋 Maven reads root pom.xml\n<i>Finds the master blueprint</i>"]
+    C --> D["🔨 Builds each module\nin dependency order\n<i>Currently: verification tests</i>"]
+    D --> E["✅ 48 tests run — All pass!\n<i>Structure is correct</i>"]
+
+    style A fill:#e8f5e9,stroke:#4caf50,color:#1b5e20
+    style B fill:#e3f2fd,stroke:#1976d2,color:#0d47a1
+    style C fill:#e3f2fd,stroke:#1976d2,color:#0d47a1
+    style D fill:#e3f2fd,stroke:#1976d2,color:#0d47a1
+    style E fill:#e8f5e9,stroke:#4caf50,color:#1b5e20
 ```
 
 #### Key Concepts
@@ -146,32 +133,42 @@ Without Docker Compose, every developer would have to install and configure thes
 
 #### How It Works (The Flow)
 
-```
-              🐳 Developer runs: docker compose up -d
-                              │
-                              ▼
-  ┌───────────────────────────────────────────────────────┐
-  │                Docker creates orion-network            │
-  │                                                       │
-  │    ┌──────────────┐  ┌──────────────┐  ┌────────────┐ │
-  │    │  🟢 Redpanda  │  │ 🐘 Postgres  │  │  ⚡ Redis   │ │
-  │    │  (messages)   │  │  (storage)   │  │  (cache)   │ │
-  │    │   :19092      │  │   :5432      │  │   :6379    │ │
-  │    └──────┬───────┘  └──────┬───────┘  └─────┬──────┘ │
-  │           │                 │                 │        │
-  │    ┌──────┴───────┐  ┌──────┴───────┐  ┌─────┴──────┐ │
-  │    │  📊 Console   │  │  🗄️ pgAdmin  │  │ 📋 RedisCmd │ │
-  │    │  (view msgs)  │  │  (view DB)   │  │ (view keys)│ │
-  │    │   :8080       │  │   :5050      │  │   :8081    │ │
-  │    └──────────────┘  └──────────────┘  └────────────┘ │
-  └───────────────────────────────────────────────────────┘
-                              │
-                              ▼
-                    All services healthy ✅
+```mermaid
+flowchart TD
+    CMD["🐳 docker compose up -d"] --> NET
 
-        🌐 http://localhost:8080  → Kafka UI
-        🌐 http://localhost:5050  → Database admin
-        🌐 http://localhost:8081  → Cache inspector
+    subgraph NET ["orion-network"]
+        direction TB
+
+        subgraph CORE ["Core Infrastructure"]
+            direction LR
+            RP["🟢 Redpanda\n<i>Messages :19092</i>"]
+            PG["🐘 Postgres\n<i>Storage :5432</i>"]
+            RD["⚡ Redis\n<i>Cache :6379</i>"]
+        end
+
+        subgraph UI ["Admin UIs"]
+            direction LR
+            CON["📊 Console\n<i>Kafka UI :8080</i>"]
+            PGA["🗄️ pgAdmin\n<i>DB Admin :5050</i>"]
+            RDC["📋 Redis Cmdr\n<i>Cache Inspector :8081</i>"]
+        end
+
+        RP --> CON
+        PG --> PGA
+        RD --> RDC
+    end
+
+    NET --> OK["✅ All services healthy"]
+
+    style CMD fill:#e3f2fd,stroke:#1976d2,color:#0d47a1
+    style RP fill:#c8e6c9,stroke:#388e3c,color:#1b5e20
+    style PG fill:#e3f2fd,stroke:#1565c0,color:#0d47a1
+    style RD fill:#fff3e0,stroke:#e65100,color:#bf360c
+    style CON fill:#f3e5f5,stroke:#7b1fa2,color:#4a148c
+    style PGA fill:#f3e5f5,stroke:#7b1fa2,color:#4a148c
+    style RDC fill:#f3e5f5,stroke:#7b1fa2,color:#4a148c
+    style OK fill:#e8f5e9,stroke:#4caf50,color:#1b5e20
 ```
 
 #### Key Concepts
@@ -221,51 +218,26 @@ In software terms, every event flowing through our Redpanda message bus uses the
 
 #### How It Works (The Flow)
 
-```
-          📢 Service wants to announce: "Trade #123 executed!"
-                              │
-                              ▼
-          ┌───────────────────────────────────────────┐
-          │        EventFactory.create(...)            │
-          │                                           │
-          │   Auto-generates:                         │
-          │     • UUID event ID                       │
-          │     • Current timestamp (ISO 8601)        │
-          │     • Correlation ID (for tracing)        │
-          │     • Version = 1                         │
-          └─────────────────┬─────────────────────────┘
-                            │
-                            ▼
-          ┌───────────────────────────────────────────┐
-          │      EventEnvelope<TradePayload>           │
-          │                                           │
-          │   ┌───────────────────────────────────┐   │
-          │   │  eventId:       "abc-123-def"      │   │
-          │   │  eventType:     "TradeExecuted"    │   │
-          │   │  eventVersion:  1                  │   │
-          │   │  occurredAt:    "2025-07-12T..."   │   │
-          │   │  producer:      "execution-svc"    │   │
-          │   │  tenantId:      "tenant-001"       │   │
-          │   │  correlationId: "xyz-789"          │   │
-          │   │  entity:  Trade / trade-123 / v1   │   │
-          │   │  payload: { price: 99.5, qty: 100 }│   │
-          │   └───────────────────────────────────┘   │
-          └─────────────────┬─────────────────────────┘
-                            │
-                            ▼
-          ┌───────────────────────────────────────────┐
-          │     EventValidator.validate(envelope)      │
-          │                                           │
-          │   Checks all required fields are present  │
-          │   → ValidationResult: valid ✅             │
-          └─────────────────┬─────────────────────────┘
-                            │
-                            ▼
-          ┌───────────────────────────────────────────┐
-          │    EventSerializer.serialize(envelope)     │
-          │                                           │
-          │   → JSON string sent to Redpanda 🚀       │
-          └───────────────────────────────────────────┘
+```mermaid
+flowchart TD
+    A["📢 Trade #123 executed!"] --> B
+
+    B["🏭 EventFactory.create(...)\n<i>Auto-generates UUID, timestamp,</i>\n<i>correlation ID, version = 1</i>"]
+    B --> C
+
+    subgraph C ["📨 EventEnvelope&lt;TradePayload&gt;"]
+        direction LR
+        FIELDS["eventId: abc-123-def\neventType: TradeExecuted\noccurredAt: 2025-07-12T...\nproducer: execution-svc\ntenantId: tenant-001\ncorrelationId: xyz-789\nentity: Trade / trade-123 / v1\npayload: price 99.5 · qty 100"]
+    end
+
+    C --> D["🔍 EventValidator.validate(envelope)\n<i>Checks all required fields</i>\n→ ValidationResult: valid ✅"]
+    D --> E["📤 EventSerializer.serialize(envelope)\n→ JSON string sent to Redpanda 🚀"]
+
+    style A fill:#fff3e0,stroke:#e65100,color:#bf360c
+    style B fill:#e3f2fd,stroke:#1976d2,color:#0d47a1
+    style FIELDS fill:#fce4ec,stroke:#c62828,color:#b71c1c,text-align:left
+    style D fill:#e8f5e9,stroke:#388e3c,color:#1b5e20
+    style E fill:#e8f5e9,stroke:#4caf50,color:#1b5e20
 ```
 
 #### Key Concepts
@@ -323,47 +295,33 @@ Without a shared security library, every service would invent its own way of che
 
 #### How It Works (The Flow)
 
-```
-       🔐 HTTP Request arrives with: "Authorization: Bearer eyJhbG..."
-                              │
-                              ▼
-          ┌───────────────────────────────────────────┐
-          │    BearerTokenExtractor.extract(header)    │
-          │                                           │
-          │    → Extracts "eyJhbG..." from "Bearer"   │
-          └─────────────────┬─────────────────────────┘
-                            │
-                            ▼
-               (Service validates JWT token,
-                builds security context)
-                            │
-                            ▼
-          ┌───────────────────────────────────────────┐
-          │          OrionSecurityContext               │
-          │                                           │
-          │   ┌───────────────────────────────────┐   │
-          │   │  user:    trader-42 / jane@acme   │   │
-          │   │  tenant:  acme-corp / Premium     │   │
-          │   │  roles:   [SALES] → implies TRADER│   │
-          │   │  assets:  FX, RATES               │   │
-          │   │  limit:   maxNotional 50,000,000  │   │
-          │   └───────────────────────────────────┘   │
-          └──────┬──────────────┬──────────────┬──────┘
-                 │              │              │
-                 ▼              ▼              ▼
-          ┌────────────┐ ┌────────────┐ ┌────────────┐
-          │ 🎭 Role     │ │ 📋 Entitl. │ │ 🏢 Tenant  │
-          │   Checker   │ │   Checker  │ │  Enforcer  │
-          │             │ │            │ │            │
-          │ SALES role  │ │ Can trade  │ │ acme-corp  │
-          │  implies    │ │  FX?       │ │    ==      │
-          │ TRADER ✅   │ │  YES ✅    │ │ acme-corp ✅│
-          └──────┬─────┘ └──────┬─────┘ └──────┬─────┘
-                 │              │              │
-                 └──────────────┼──────────────┘
-                                │
-                                ▼
-                    ✅ Request proceeds!
+```mermaid
+flowchart TD
+    REQ["🔐 HTTP Request\n<i>Authorization: Bearer eyJhbG...</i>"] --> EXT
+    EXT["🔑 BearerTokenExtractor.extract(header)\n→ Extracts token from Bearer prefix"] --> JWT
+    JWT["🔄 Service validates JWT\n<i>Builds security context</i>"] --> CTX
+
+    subgraph CTX ["📦 OrionSecurityContext"]
+        direction LR
+        INFO["user: trader-42 / jane@acme\ntenant: acme-corp / Premium\nroles: SALES → implies TRADER\nassets: FX, RATES\nlimit: maxNotional 50,000,000"]
+    end
+
+    CTX --> ROLE["🎭 RoleChecker\n<i>SALES implies TRADER</i>\n✅ Authorized"]
+    CTX --> ENT["📋 EntitlementChecker\n<i>Can trade FX?</i>\n✅ Entitled"]
+    CTX --> TEN["🏢 TenantEnforcer\n<i>acme-corp == acme-corp</i>\n✅ Isolated"]
+
+    ROLE --> OK["✅ Request proceeds!"]
+    ENT --> OK
+    TEN --> OK
+
+    style REQ fill:#fff3e0,stroke:#e65100,color:#bf360c
+    style EXT fill:#e3f2fd,stroke:#1976d2,color:#0d47a1
+    style JWT fill:#e3f2fd,stroke:#1976d2,color:#0d47a1
+    style INFO fill:#fce4ec,stroke:#c62828,color:#b71c1c
+    style ROLE fill:#e8f5e9,stroke:#388e3c,color:#1b5e20
+    style ENT fill:#e8f5e9,stroke:#388e3c,color:#1b5e20
+    style TEN fill:#e8f5e9,stroke:#388e3c,color:#1b5e20
+    style OK fill:#c8e6c9,stroke:#2e7d32,color:#1b5e20
 ```
 
 #### Key Concepts
