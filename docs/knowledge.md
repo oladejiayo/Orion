@@ -244,3 +244,59 @@ com.orion.security/
 6. **SecurityContextSerializer for gRPC propagation** — Service-to-service calls carry security context in gRPC metadata as Base64-encoded JSON. The serializer handles the encode/decode.
 7. **TestSecurityContextFactory in main source** — Placed in `com.orion.security.testing` package in `src/main` so other modules can import it in their test scope. Avoids the complexity of Maven test-jars.
 8. **Jackson for serialization** — Same as event-model. Used only for SecurityContextSerializer (gRPC metadata propagation).
+
+---
+
+## US-01-05: Setup Shared Observability Library
+
+### Business Context
+Orion is a **distributed, event-driven** trading platform with multiple microservices communicating via gRPC and Kafka. When a trade request flows from the UI through the BFF, to the RFQ service, to the execution service, and finally to post-trade — debugging a failure anywhere in that chain requires **correlation**: the ability to trace a single request across all services using a shared correlation ID, structured logs, distributed traces, and metrics.
+
+This library (`orion-observability`) provides the shared **observability primitives** that every service will use. It's the telescope, the dashboard gauges, and the logbook that let operators see inside the running system. Without it, each service would invent its own logging format, metric naming, and correlation strategy — making production debugging nearly impossible.
+
+### Reinterpretation of US-01-05
+The original story was written for TypeScript/Node.js (pino, prom-client, @opentelemetry/sdk-node, Express middleware). We reinterpret for Java 21:
+
+| Original (TypeScript) | Reinterpreted (Java 21) |
+|---|---|
+| `pino` logger with `AsyncLocalStorage` | SLF4J API + MDC (Mapped Diagnostic Context) for correlation propagation |
+| `createLogger(serviceName)` factory | `ObservabilityContext` record + `CorrelationContext` record + MDC integration |
+| Sensitive field redaction | `SensitiveDataRedactor` utility with configurable field patterns |
+| `@opentelemetry/sdk-node` | OpenTelemetry Java API (`opentelemetry-api`) — SDK wiring deferred to services |
+| `createSpan()` / `withSpan()` | `SpanHelper` wrapping OTel `Tracer` with correlation ID propagation |
+| `prom-client` counters/gauges/histograms | Micrometer `MeterRegistry` with `MetricFactory` wrapper for tenant labels |
+| Express middleware (AC4) | **Deferred** — Spring MVC filters are service-layer concerns |
+| gRPC interceptors (AC5) | **Deferred** — grpc-java `ServerInterceptor` in service modules |
+| Kafka instrumentation (AC6) | **Deferred** — Spring Kafka + Micrometer integration in service modules |
+| Health check aggregation (AC7) | `HealthCheck` functional interface + `HealthCheckRegistry` (pure Java) |
+| `/health`, `/health/ready`, `/health/live` endpoints | **Deferred** — Spring Boot Actuator in service modules; library provides abstractions |
+| Mock logger for tests | `TestCorrelationContext` factory + `InMemoryHealthCheck` in `testing` package |
+
+### Package Structure
+
+```
+com.orion.observability/
+├── CorrelationContext.java           — Record: correlationId, tenantId, userId, requestId, spanId, traceId
+├── ObservabilityContext.java         — Record: aggregates correlation + service metadata for MDC injection
+├── CorrelationContextHolder.java     — ThreadLocal + MDC bridge for context propagation
+├── SensitiveDataRedactor.java        — Utility: redacts passwords, tokens, secrets from log data maps
+├── SpanHelper.java                   — Utility: wraps OTel Tracer API for span creation with correlation
+├── MetricFactory.java                — Utility: wraps Micrometer MeterRegistry with auto tenant labels
+├── HealthCheck.java                  — Functional interface: () → CompletableFuture<ComponentHealth>
+├── HealthCheckRegistry.java          — Aggregates multiple health checks, returns HealthStatus
+├── HealthStatus.java                 — Enum: HEALTHY, DEGRADED, UNHEALTHY
+├── ComponentHealth.java              — Record: component name, status, message, latency
+├── HealthResult.java                 — Record: overall status + map of component results + timestamp
+└── testing/
+    ├── TestCorrelationContextFactory.java  — Creates mock correlation contexts for service tests
+    └── InMemoryHealthCheck.java            — Controllable health check for testing health aggregation
+```
+
+### Design Decisions
+1. **Pure Java library — no Spring dependency** — Consistent with `orion-event-model` and `orion-security`. Micrometer and OpenTelemetry API are framework-agnostic Java libraries. Spring Boot Actuator, web filters, and gRPC interceptors are deferred to service-layer stories.
+2. **SLF4J MDC for correlation propagation** — MDC (Mapped Diagnostic Context) is the standard Java mechanism for per-thread log context. Every log statement automatically includes `correlationId`, `tenantId`, `userId` without explicit passing. Works with Logback, Log4j2, or any SLF4J backend.
+3. **Micrometer over raw Prometheus client** — Micrometer is Spring Boot's native metrics facade. It supports Prometheus, CloudWatch, Datadog, and others. The `MetricFactory` wrapper auto-includes `tenant` label on every metric for multi-tenant segmentation.
+4. **OpenTelemetry API only (not SDK)** — The library depends on `opentelemetry-api` (interface), not the SDK. Services configure the SDK (OTLP exporter, sampling, etc.) at boot time. This keeps the library thin and avoids version conflicts.
+5. **Health check as functional interface** — `HealthCheck` is `@FunctionalInterface` returning `CompletableFuture<ComponentHealth>`. Services register checks (Postgres, Redis, Kafka) and the registry aggregates them. Async by default for non-blocking health probes.
+6. **AC4 (Express/HTTP), AC5 (gRPC), AC6 (Kafka) deferred** — These are transport-layer integrations requiring Spring/gRPC/Kafka dependencies. The library provides the *what* (correlation context, metric factory, span helper); services provide the *how* (filters, interceptors, instrumentation).
+7. **Test utilities in `src/main`** — Same pattern as `orion-security`. `TestCorrelationContextFactory` and `InMemoryHealthCheck` are in `src/main/java` so other modules can import them as a regular dependency in test scope.

@@ -97,6 +97,15 @@ flowchart TD
 | **Redis** | An in-memory cache for super-fast data access |
 | **Health Check** | A periodic ping to verify a service is running |
 | **Named Volume** | Docker storage that persists after containers stop |
+| **SLF4J** | Simple Logging Facade for Java — a standard logging API that lets you swap implementations |
+| **MDC** | Mapped Diagnostic Context — thread-local storage in SLF4J that stamps every log with context (like correlation ID) |
+| **Micrometer** | A metrics facade for Java — creates counters, timers, and gauges that work with Prometheus, CloudWatch, etc. |
+| **OpenTelemetry** | An open standard for distributed tracing — tracks requests as they flow across services |
+| **Span** | A named, timed segment of work in a distributed trace (e.g., "Handle RFQ" → 25ms) |
+| **Correlation ID** | A tracking number that follows a single request across all services for end-to-end tracing |
+| **ThreadLocal** | A Java variable that's different for every thread — each request gets its own isolated copy |
+| **CompletableFuture** | Java's way of representing an async result — "I'll give you the answer later" |
+| **Redaction** | Replacing sensitive data (passwords, tokens) with "[REDACTED]" in logs to prevent leaks |
 
 ---
 
@@ -322,14 +331,106 @@ flowchart TD
 
 ---
 
+### ✅ US-01-05: Setup Shared Observability Library
+
+**📅 Implemented:** 2025-07-13  
+**📁 Location:** `libs/observability/`
+
+#### What Did We Build?
+
+We created a **shared telescope and dashboard** — a library that lets every service track what's happening, spot problems, and trace a single request as it bounces between services.
+
+#### Why Do We Need This?
+
+Imagine you're running a huge restaurant (our trading platform) with 10 different kitchens (microservices). When a customer complains about their order, you need to figure out what went wrong. Which kitchen handled it? How long did each step take? Did anyone drop the ball?
+
+Without observability, it's like trying to find a lost package in a postal system with no tracking numbers. With it, every "package" (request) gets:
+
+1. **A tracking number** → `CorrelationContext` (follows the request everywhere)
+2. **A timestamp at every stop** → `SpanHelper` (traces how long each step takes)
+3. **Dashboard gauges** → `MetricFactory` (counts, timers, live measurements)
+4. **A health report** → `HealthCheckRegistry` (is each kitchen still running?)
+5. **A privacy filter** → `SensitiveDataRedactor` (hides passwords in the logs)
+
+#### The Parts We Created
+
+| File | What It Is | Simple Explanation |
+|------|-----------|-------------------|
+| `CorrelationContext.java` | Tracking number | The "tracking sticker" attached to every request — correlation ID, tenant ID, user ID, request ID |
+| `ObservabilityContext.java` | Service metadata | Combines the tracking number with which service is handling it (name, version, environment) |
+| `CorrelationContextHolder.java` | Tracking number holder | A "pocket" on each thread that holds the tracking number. Automatically stamps it onto every log message. |
+| `SensitiveDataRedactor.java` | Privacy filter | Scans log data for passwords, tokens, and secrets, replacing them with "[REDACTED]" |
+| `SpanHelper.java` | Stopwatch wrapper | Wraps OpenTelemetry to create "spans" — named stopwatches that measure how long each step takes |
+| `MetricFactory.java` | Dashboard gauge factory | Creates counters ("how many orders?"), timers ("how fast?"), and gauges ("how many active?") — all auto-tagged with the tenant |
+| `HealthCheck.java` | Health check interface | A simple contract: "check if a component is healthy and report back" |
+| `HealthCheckRegistry.java` | Health aggregator | Collects health checks from all components (database, cache, message bus) and runs them all at once |
+| `HealthStatus.java` | Health traffic light | Three states: HEALTHY 🟢, DEGRADED 🟡, UNHEALTHY 🔴 |
+| `ComponentHealth.java` | Component report | The result of checking one component — name, status, message, and how long the check took |
+| `HealthResult.java` | Overall report | The big picture — overall status + every component's individual report + timestamp |
+| `TestCorrelationContextFactory.java` | Test helper | Creates fake tracking numbers for unit tests so every test doesn't have to build one from scratch |
+| `InMemoryHealthCheck.java` | Test health check | A controllable health check for tests — you can flip it between healthy/unhealthy on demand |
+
+#### How It Works (The Flow)
+
+```mermaid
+flowchart TD
+    REQ["📨 Incoming Request\n<i>from UI or another service</i>"]
+    REQ --> CTX["🏷️ CorrelationContextHolder.set\n<i>Stores tracking number on thread</i>"]
+    CTX --> MDC["📋 SLF4J MDC populated\n<i>correlationId · tenantId · userId</i>"]
+
+    MDC --> LOG["📝 Every log.info call\nautomatically includes\ncorrelation + tenant IDs"]
+    MDC --> SPAN["⏱️ SpanHelper.withSpan\n<i>Creates a named stopwatch</i>\nAttaches correlation.id"]
+    MDC --> MET["📊 MetricFactory\n<i>counter++ · timer.record</i>\nAuto-tagged with service + tenant"]
+
+    LOG & SPAN & MET --> OBS["🔭 Full Observability\nLogs + Traces + Metrics\nall linked by correlation ID"]
+
+    subgraph HC ["🏥 Health Checks"]
+        REG["HealthCheckRegistry"] --> PG["🐘 Postgres\n✅ 5ms"]
+        REG --> RD["⚡ Redis\n✅ 2ms"]
+        REG --> KF["📬 Kafka\n🔴 timeout"]
+    end
+
+    REG --> HR["HealthResult\n🟡 DEGRADED"]
+
+    style REQ fill:#fff3e0,stroke:#e65100,color:#bf360c
+    style CTX fill:#e3f2fd,stroke:#1976d2,color:#0d47a1
+    style MDC fill:#e3f2fd,stroke:#1976d2,color:#0d47a1
+    style LOG fill:#e8f5e9,stroke:#388e3c,color:#1b5e20
+    style SPAN fill:#e8f5e9,stroke:#388e3c,color:#1b5e20
+    style MET fill:#e8f5e9,stroke:#388e3c,color:#1b5e20
+    style OBS fill:#c8e6c9,stroke:#2e7d32,color:#1b5e20
+    style REG fill:#e3f2fd,stroke:#1976d2,color:#0d47a1
+    style PG fill:#e8f5e9,stroke:#388e3c,color:#1b5e20
+    style RD fill:#e8f5e9,stroke:#388e3c,color:#1b5e20
+    style KF fill:#fce4ec,stroke:#c62828,color:#b71c1c
+    style HR fill:#fff3e0,stroke:#e65100,color:#bf360c
+```
+
+#### Key Concepts
+
+| Concept | Simple Explanation |
+|---------|-------------------|
+| **Correlation ID** | A tracking number that follows a request across all services. If an RFQ leads to a quote, which leads to a trade — they all share the same correlation ID so you can trace the entire chain. |
+| **MDC** | "Mapped Diagnostic Context" — SLF4J's built-in thread-local storage. When you put `correlationId` into MDC, every log statement on that thread automatically includes it. Like a stamp pad that marks every letter on a desk. |
+| **OpenTelemetry** | An open standard for distributed tracing. Creates "spans" (named stopwatches) that show how long each operation takes and how they nest. Like a GPS tracker for your request. |
+| **Span** | A named, timed segment of work. "Handle RFQ" might be a parent span containing child spans like "Validate input" (5ms), "Query database" (20ms), "Send to Kafka" (3ms). |
+| **Micrometer** | A metrics library for Java. Supports Prometheus, CloudWatch, Datadog. Think of it as the dashboard gauges in your car — speed, RPM, fuel level, but for your services. |
+| **Counter** | A metric that only goes up: "total orders processed = 1,234." Like an odometer on a car. |
+| **Timer** | A metric that measures how long things take: "average request latency = 15ms." Like a lap timer. |
+| **Gauge** | A metric that goes up and down: "active connections right now = 42." Like a speedometer. |
+| **Health Check** | A quick ping to a dependency: "Is Postgres responding?" The registry runs all checks at once and gives an overall status. |
+| **Redaction** | Replacing sensitive data (passwords, tokens) with "[REDACTED]" in logs. Like blacking out classified information before publishing a document. |
+| **ThreadLocal** | A variable that's different for every thread. Each request gets its own thread (or virtual thread), so each request has its own correlation context. Like giving every postal worker their own desk with their own stamp pad. |
+
+---
+
 ## 🔮 What's Coming Next
 
 | Story | What It Will Add |
 |---|---|
-| US-01-05 | Shared observability library — logging, metrics, and tracing |
 | US-01-06 | Protobuf definitions — gRPC service contracts |
 | US-01-07 | GitHub Actions CI — automated build and test on every push |
 
 ---
 
-*Last updated after US-01-04*
+*Last updated after US-01-05*
