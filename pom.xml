@@ -80,6 +80,7 @@
         <module>libs/event-model</module>
         <module>libs/security</module>
         <module>libs/observability</module>
+        <module>libs/grpc-api</module>
 
         <!-- Microservices (depend on libs) -->
         <!-- <module>services/bff-workstation</module> -->
@@ -150,6 +151,11 @@
             <dependency>
                 <groupId>com.orion</groupId>
                 <artifactId>orion-observability</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.orion</groupId>
+                <artifactId>orion-grpc-api</artifactId>
                 <version>${project.version}</version>
             </dependency>
         </dependencies>

@@ -88,8 +88,14 @@ flowchart TD
 | **Module** | A sub-project within the Maven monorepo |
 | **TDD** | Test-Driven Development — tests written before code |
 | **CI/CD** | Continuous Integration / Continuous Delivery — automated build + deploy |
-| **gRPC** | A fast protocol for services to communicate |
-| **Protobuf** | Protocol Buffers — a compact data format used by gRPC |
+| **gRPC** | A fast binary protocol for services to communicate, built on HTTP/2 + Protobuf |
+| **Protobuf** | Protocol Buffers — Google's compact, typed data format; `.proto` files compile to Java classes |
+| **protoc** | The Protocol Buffer compiler — reads `.proto` files and generates source code |
+| **RPC** | Remote Procedure Call — calling a function on another computer as if it were local |
+| **Service Stub** | A generated gRPC class (e.g., `RFQServiceGrpc`) providing client and server interfaces |
+| **Server-Streaming RPC** | An RPC where the server sends a stream of responses to one request (e.g., live ticks) |
+| **IDL** | Interface Definition Language — a language for defining APIs (Protobuf is an IDL) |
+| **Oneof** | A Protobuf field group where only one field can be set at a time |
 | **Docker** | A tool that runs apps in isolated containers |
 | **Docker Compose** | Starts multiple Docker containers from one YAML recipe |
 | **Redpanda** | A lightweight Kafka-compatible message broker |
@@ -424,13 +430,101 @@ flowchart TD
 
 ---
 
+### ✅ US-01-06: Protobuf Definitions & gRPC Service Contracts
+
+**📅 Implemented:** 2025-07-13  
+**📁 Location:** `libs/grpc-api/`
+
+#### What Did We Build?
+
+We created the **dictionary and phrasebook** for every conversation our services will ever have — written in Protocol Buffers (Protobuf), the universal language of gRPC.
+
+#### Why Do We Need This?
+
+Imagine our trading floor has 10 teams that need to talk to each other: the market data team, the RFQ desk, the execution desk, the post-trade team, and the admin office. Right now, they could each invent their own language — one writes notes in English, another in French, another in emoji. Chaos!
+
+**Protobuf** is like agreeing on a single dictionary: every noun (message) and every verb (RPC method) is defined once, in `.proto` files. Then a compiler (`protoc`) automatically generates Java code for everyone. Nobody hand-writes the message classes — the machine writes them perfectly every time.
+
+The result: **132 generated Java files** from just **8 handwritten proto files**. That's a 16:1 leverage ratio — 8 definitions become an entire type-safe API.
+
+#### The Parts We Created
+
+| File | What It Is | Simple Explanation |
+|------|-----------|-------------------|
+| `v1/common/types.proto` | Shared vocabulary | Timestamp, Money, Decimal, Side (Buy/Sell), AssetClass (FX, Rates, etc.), Tenant & User context |
+| `v1/common/pagination.proto` | Page navigation | How to ask for "page 3 of 50 results" and get back "here's page 3, there are 6 pages total" |
+| `v1/common/errors.proto` | Error format | A standard error response with code, message, field-level details, and metadata map |
+| `v1/marketdata/marketdata.proto` | Market data service | Get price snapshots, stream live ticks, fetch historical data — with order book depth |
+| `v1/rfq/rfq.proto` | RFQ service | Create/get/list/accept/cancel RFQs, watch for live quote updates via streaming |
+| `v1/execution/execution.proto` | Execution service | Get trade details, list trades with filters (instrument, status, side) |
+| `v1/posttrade/posttrade.proto` | Post-trade service | Track confirmations (pending → affirmed) and settlements (instructed → settled/failed) |
+| `v1/admin/admin.proto` | Admin service | Manage instruments, toggle the kill switch, update trader limits |
+| `pom.xml` | Module build file | Uses protobuf-maven-plugin to compile `.proto` → Java classes + gRPC stubs automatically |
+
+#### How It Works (The Flow)
+
+```mermaid
+flowchart TD
+    DEV["✏️ Developer writes\n8 .proto files\n<i>The 'dictionary'</i>"]
+    DEV --> PROTOC["⚙️ protoc compiler runs\n<i>via protobuf-maven-plugin</i>"]
+
+    PROTOC --> MSG["📦 Message classes\n<i>Timestamp, Money, RFQDetails,\nTradeDetails, etc.</i>\n132 Java files"]
+    PROTOC --> SVC["🔌 Service stubs\n<i>RFQServiceGrpc,\nMarketDataServiceGrpc, etc.</i>\n5 service interfaces"]
+
+    subgraph SERVICES ["📡 5 Domain Services"]
+        S1["📈 MarketData\n<i>3 RPCs</i>"]
+        S2["📋 RFQ\n<i>6 RPCs</i>"]
+        S3["⚡ Execution\n<i>2 RPCs</i>"]
+        S4["📬 PostTrade\n<i>3 RPCs</i>"]
+        S5["🔧 Admin\n<i>6 RPCs</i>"]
+    end
+
+    MSG --> SERVICES
+    SVC --> SERVICES
+
+    SERVICES --> TYPES["✅ Type-safe communication\n<i>Compiler catches mistakes</i>"]
+
+    style DEV fill:#fff3e0,stroke:#e65100,color:#bf360c
+    style PROTOC fill:#e3f2fd,stroke:#1976d2,color:#0d47a1
+    style MSG fill:#e8f5e9,stroke:#388e3c,color:#1b5e20
+    style SVC fill:#e8f5e9,stroke:#388e3c,color:#1b5e20
+    style S1 fill:#f3e5f5,stroke:#7b1fa2,color:#4a148c
+    style S2 fill:#f3e5f5,stroke:#7b1fa2,color:#4a148c
+    style S3 fill:#f3e5f5,stroke:#7b1fa2,color:#4a148c
+    style S4 fill:#f3e5f5,stroke:#7b1fa2,color:#4a148c
+    style S5 fill:#f3e5f5,stroke:#7b1fa2,color:#4a148c
+    style TYPES fill:#c8e6c9,stroke:#2e7d32,color:#1b5e20
+```
+
+#### Key Concepts
+
+| Concept | Simple Explanation |
+|---------|-------------------|
+| **Protocol Buffers (Protobuf)** | Google's compact data format. Like JSON but smaller, faster, and with strict types. A `.proto` file says "a Money has a string amount and a string currency" — and a compiler generates the Java code for you. |
+| **gRPC** | A fast communication protocol built on Protobuf. Instead of REST (text over HTTP), gRPC sends binary Protobuf over HTTP/2. Like upgrading from handwritten letters to a phone call. |
+| **RPC** | "Remote Procedure Call" — calling a function on another computer as if it were local. `rfqService.CreateRFQ(request)` sends a network call to the RFQ service and gets back a response. |
+| **protoc** | The Protobuf compiler. Reads `.proto` files and generates Java classes, gRPC service stubs, and builders. The "translation machine" from dictionary to code. |
+| **Service Stub** | A generated Java class (like `RFQServiceGrpc`) that provides a ready-made client and server interface. You just implement the methods — the networking is handled for you. |
+| **Server-Streaming RPC** | A special RPC where the server sends a stream of responses to one request. Like subscribing to a news feed — you ask once, and updates keep flowing back. Used for `StreamTicks` and `WatchRFQ`. |
+| **String-Based Financials** | Money amounts are stored as strings ("1.0852"), not floating-point numbers, because floats lose precision. The service layer converts to `BigDecimal` for math. |
+| **Oneof** | A Protobuf feature where only ONE of several fields can be set. An `RFQUpdate` carries either a `new_quote`, `expired`, `accepted`, OR `cancelled` — never two at once. Like a letter that's either an invitation, a bill, or a thank-you note — pick one. |
+| **v1 Versioning** | All protos live under `v1/`. If we need a breaking change, we create `v2/` and run both versions. Existing clients keep working on v1 while new clients use v2. |
+
+---
+
+## 📖 Glossary
+
+*(see updated glossary below)*
+
+---
+
 ## 🔮 What's Coming Next
 
 | Story | What It Will Add |
 |---|---|
-| US-01-06 | Protobuf definitions — gRPC service contracts |
 | US-01-07 | GitHub Actions CI — automated build and test on every push |
+| US-01-08 | Database migrations — Flyway schema versioning for PostgreSQL |
 
 ---
 
-*Last updated after US-01-05*
+*Last updated after US-01-06*

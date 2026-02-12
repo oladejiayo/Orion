@@ -1,0 +1,44 @@
+// =============================================================================
+// Orion Platform — Error Messages (v1)
+//
+// Standard error types for structured error responses across all gRPC services.
+// Complements gRPC status codes with domain-specific error details.
+// =============================================================================
+syntax = "proto3";
+
+package orion.common.v1;
+
+option java_multiple_files = true;
+option java_package = "com.orion.common.v1";
+
+import "v1/common/types.proto";
+
+// ---------------------------------------------------------------------------
+// Individual error detail — for field-level validation or sub-errors.
+// ---------------------------------------------------------------------------
+message ErrorDetail {
+  // Machine-readable error code (e.g., "VALIDATION_ERROR", "FIELD_REQUIRED")
+  string code = 1;
+  // Human-readable error message
+  string message = 2;
+  // Field that caused the error (for validation errors)
+  optional string field = 3;
+  // Additional key-value metadata for error context
+  map<string, string> metadata = 4;
+}
+
+// ---------------------------------------------------------------------------
+// Standard error response — returned alongside gRPC status for rich errors.
+// ---------------------------------------------------------------------------
+message ErrorResponse {
+  // Machine-readable top-level error code
+  string error_code = 1;
+  // Human-readable error summary
+  string message = 2;
+  // Detailed list of individual errors (e.g., multiple validation failures)
+  repeated ErrorDetail details = 3;
+  // Correlation ID for tracing this error back through the system
+  string correlation_id = 4;
+  // When the error occurred
+  Timestamp timestamp = 5;
+}

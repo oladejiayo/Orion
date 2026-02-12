@@ -76,6 +76,7 @@ You are an expert Java and Spring Boot software developer and architect. You bui
 - ALWAYS update `eli5-guide.md` at the end of every story implementation
 
 ### Documentation Structure
+keep architecture document up to date with design decisions, patterns, and diagrams. Use `knowledge.md` for detailed business flow documentation that may not fit in the architecture docs. Update `eli5-guide.md` with simple explanations and analogies after implementation.
 
 ```
 /docs/

@@ -1,0 +1,142 @@
+// =============================================================================
+// Orion Platform — Market Data Service (v1)
+//
+// Real-time and historical market data for all tradeable instruments.
+// Supports point-in-time snapshots, streaming tick updates, and historical
+// tick queries for backtesting and analysis.
+// =============================================================================
+syntax = "proto3";
+
+package orion.marketdata.v1;
+
+import "v1/common/types.proto";
+
+option java_multiple_files = true;
+option java_package = "com.orion.marketdata.v1";
+
+// ---------------------------------------------------------------------------
+// Market Data Query Service — read-only access to live and historical prices.
+// ---------------------------------------------------------------------------
+service MarketDataService {
+  // Get current price snapshot for one or more instruments
+  rpc GetSnapshot(SnapshotRequest) returns (SnapshotResponse);
+
+  // Subscribe to real-time tick updates (server-streaming)
+  rpc StreamTicks(TickSubscription) returns (stream MarketTick);
+
+  // Get historical ticks for a time range (for analytics/backtesting)
+  rpc GetHistoricalTicks(HistoricalTicksRequest) returns (HistoricalTicksResponse);
+}
+
+// ---------------------------------------------------------------------------
+// Snapshot request — get current prices for a set of instruments.
+// ---------------------------------------------------------------------------
+message SnapshotRequest {
+  // Instrument IDs to fetch (e.g., "EUR/USD", "US10Y")
+  repeated string instrument_ids = 1;
+  // Include order book depth in response
+  bool include_depth = 2;
+  // Number of depth levels to include (default: 5)
+  optional int32 depth_levels = 3;
+}
+
+// ---------------------------------------------------------------------------
+// Snapshot response — map of instrument ID to current market state.
+// ---------------------------------------------------------------------------
+message SnapshotResponse {
+  // Map of instrument ID → snapshot
+  map<string, MarketSnapshot> snapshots = 1;
+  // Server timestamp when snapshot was taken
+  orion.common.v1.Timestamp timestamp = 2;
+}
+
+// ---------------------------------------------------------------------------
+// Full market snapshot for a single instrument.
+// ---------------------------------------------------------------------------
+message MarketSnapshot {
+  string instrument_id = 1;
+  orion.common.v1.Decimal bid = 2;
+  orion.common.v1.Decimal ask = 3;
+  orion.common.v1.Decimal mid = 4;
+  orion.common.v1.Decimal spread = 5;
+  orion.common.v1.Timestamp last_update = 6;
+  // Order book depth (included only if requested)
+  optional OrderBookDepth depth = 7;
+  // Data quality indicators
+  DataQuality quality = 8;
+}
+
+// ---------------------------------------------------------------------------
+// Order book depth — bid/ask price levels with quantities.
+// ---------------------------------------------------------------------------
+message OrderBookDepth {
+  repeated PriceLevel bids = 1;
+  repeated PriceLevel asks = 2;
+}
+
+message PriceLevel {
+  orion.common.v1.Decimal price = 1;
+  orion.common.v1.Decimal quantity = 2;
+  // Number of individual orders at this price level
+  int32 order_count = 3;
+}
+
+// ---------------------------------------------------------------------------
+// Data quality flags — helps consumers decide whether to trust the data.
+// ---------------------------------------------------------------------------
+message DataQuality {
+  // True if the data hasn't been updated recently
+  bool is_stale = 1;
+  // True if the price is indicative (not firm/tradeable)
+  bool is_indicative = 2;
+  // Data source identifier (e.g., "reuters", "bloomberg")
+  optional string source = 3;
+  // Age of the data in milliseconds
+  optional int64 age_ms = 4;
+}
+
+// ---------------------------------------------------------------------------
+// Streaming tick subscription — instruments to watch in real-time.
+// ---------------------------------------------------------------------------
+message TickSubscription {
+  // Instruments to subscribe to
+  repeated string instrument_ids = 1;
+  // Tenant context for isolation
+  orion.common.v1.TenantContext tenant = 2;
+  // Correlation context for tracing
+  orion.common.v1.CorrelationContext correlation = 3;
+}
+
+// ---------------------------------------------------------------------------
+// Single market tick — one price update for one instrument.
+// ---------------------------------------------------------------------------
+message MarketTick {
+  string instrument_id = 1;
+  orion.common.v1.Decimal bid = 2;
+  orion.common.v1.Decimal ask = 3;
+  orion.common.v1.Decimal mid = 4;
+  orion.common.v1.Timestamp timestamp = 5;
+  // Data source identifier
+  string source = 6;
+  // Monotonically increasing sequence number per instrument
+  int64 sequence = 7;
+  // Data quality flags
+  DataQuality quality = 8;
+}
+
+// ---------------------------------------------------------------------------
+// Historical ticks request — for backtesting and analytics.
+// ---------------------------------------------------------------------------
+message HistoricalTicksRequest {
+  string instrument_id = 1;
+  orion.common.v1.Timestamp start_time = 2;
+  orion.common.v1.Timestamp end_time = 3;
+  // Maximum results to return (default: 1000)
+  optional int32 max_results = 4;
+}
+
+message HistoricalTicksResponse {
+  repeated MarketTick ticks = 1;
+  // True if more ticks exist beyond max_results
+  bool has_more = 2;
+}

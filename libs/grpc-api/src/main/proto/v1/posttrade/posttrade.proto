@@ -1,0 +1,116 @@
+// =============================================================================
+// Orion Platform — Post-Trade Service (v1)
+//
+// Manages trade confirmations and settlement lifecycle. Tracks the state of
+// each trade from execution through final settlement.
+// =============================================================================
+syntax = "proto3";
+
+package orion.posttrade.v1;
+
+import "v1/common/types.proto";
+import "v1/common/pagination.proto";
+
+option java_multiple_files = true;
+option java_package = "com.orion.posttrade.v1";
+
+// ---------------------------------------------------------------------------
+// Post-Trade Service — confirmation and settlement queries.
+// ---------------------------------------------------------------------------
+service PostTradeService {
+  // Get trade confirmation details
+  rpc GetConfirmation(GetConfirmationRequest) returns (ConfirmationDetails);
+
+  // Get settlement status for a trade
+  rpc GetSettlementStatus(GetSettlementStatusRequest) returns (SettlementDetails);
+
+  // List confirmations with filters and pagination
+  rpc ListConfirmations(ListConfirmationsRequest) returns (ListConfirmationsResponse);
+}
+
+// ---------------------------------------------------------------------------
+// Confirmation status — tracks the confirmation lifecycle.
+// ---------------------------------------------------------------------------
+enum ConfirmationStatus {
+  CONFIRMATION_STATUS_UNSPECIFIED = 0;
+  CONFIRMATION_STATUS_PENDING = 1;
+  CONFIRMATION_STATUS_SENT = 2;
+  CONFIRMATION_STATUS_AFFIRMED = 3;
+  CONFIRMATION_STATUS_DISPUTED = 4;
+}
+
+// ---------------------------------------------------------------------------
+// Settlement status — tracks the settlement lifecycle.
+// ---------------------------------------------------------------------------
+enum SettlementStatus {
+  SETTLEMENT_STATUS_UNSPECIFIED = 0;
+  SETTLEMENT_STATUS_PENDING = 1;
+  SETTLEMENT_STATUS_INSTRUCTED = 2;
+  SETTLEMENT_STATUS_MATCHED = 3;
+  SETTLEMENT_STATUS_SETTLED = 4;
+  SETTLEMENT_STATUS_FAILED = 5;
+}
+
+// ---------------------------------------------------------------------------
+// Get Confirmation — fetch confirmation details for a trade.
+// ---------------------------------------------------------------------------
+message GetConfirmationRequest {
+  string trade_id = 1;
+  orion.common.v1.TenantContext tenant = 2;
+}
+
+// ---------------------------------------------------------------------------
+// Confirmation details — the state of trade confirmation with counterparty.
+// ---------------------------------------------------------------------------
+message ConfirmationDetails {
+  string confirmation_id = 1;
+  string trade_id = 2;
+  ConfirmationStatus status = 3;
+  orion.common.v1.Timestamp sent_at = 4;
+  // When the counterparty affirmed (only if status is AFFIRMED)
+  optional orion.common.v1.Timestamp affirmed_at = 5;
+  string counterparty_id = 6;
+  // External document reference for the confirmation
+  optional string document_ref = 7;
+}
+
+// ---------------------------------------------------------------------------
+// Get Settlement Status — fetch settlement progress for a trade.
+// ---------------------------------------------------------------------------
+message GetSettlementStatusRequest {
+  string trade_id = 1;
+  orion.common.v1.TenantContext tenant = 2;
+}
+
+// ---------------------------------------------------------------------------
+// Settlement details — payment and delivery status.
+// ---------------------------------------------------------------------------
+message SettlementDetails {
+  string settlement_id = 1;
+  string trade_id = 2;
+  SettlementStatus status = 3;
+  // Expected settlement date (T+1, T+2, etc.)
+  orion.common.v1.Timestamp settlement_date = 4;
+  // Settlement amount
+  orion.common.v1.Money settlement_amount = 5;
+  // When settlement completed (only if status is SETTLED)
+  optional orion.common.v1.Timestamp settled_at = 6;
+  // Reason for failure (only if status is FAILED)
+  optional string failure_reason = 7;
+}
+
+// ---------------------------------------------------------------------------
+// List Confirmations — paginated query with filters.
+// ---------------------------------------------------------------------------
+message ListConfirmationsRequest {
+  orion.common.v1.TenantContext tenant = 1;
+  orion.common.v1.PaginationRequest pagination = 2;
+  optional ConfirmationStatus status = 3;
+  optional orion.common.v1.Timestamp from_date = 4;
+  optional orion.common.v1.Timestamp to_date = 5;
+}
+
+message ListConfirmationsResponse {
+  repeated ConfirmationDetails confirmations = 1;
+  orion.common.v1.PaginationResponse pagination = 2;
+}

@@ -1,0 +1,94 @@
+// =============================================================================
+// Orion Platform — Execution Service (v1)
+//
+// Trade execution and query service. Manages the lifecycle of trades from
+// execution through settlement. Supports filtered listing with pagination.
+// =============================================================================
+syntax = "proto3";
+
+package orion.execution.v1;
+
+import "v1/common/types.proto";
+import "v1/common/pagination.proto";
+
+option java_multiple_files = true;
+option java_package = "com.orion.execution.v1";
+
+// ---------------------------------------------------------------------------
+// Execution Service — trade queries and lifecycle management.
+// ---------------------------------------------------------------------------
+service ExecutionService {
+  // Get full details of a specific trade
+  rpc GetTrade(GetTradeRequest) returns (TradeDetails);
+
+  // List trades with filtering and pagination
+  rpc ListTrades(ListTradesRequest) returns (ListTradesResponse);
+}
+
+// ---------------------------------------------------------------------------
+// Trade status — lifecycle from pending to settled.
+// ---------------------------------------------------------------------------
+enum TradeStatus {
+  TRADE_STATUS_UNSPECIFIED = 0;
+  TRADE_STATUS_PENDING = 1;
+  TRADE_STATUS_EXECUTED = 2;
+  TRADE_STATUS_PARTIALLY_FILLED = 3;
+  TRADE_STATUS_CANCELLED = 4;
+  TRADE_STATUS_REJECTED = 5;
+  TRADE_STATUS_SETTLED = 6;
+}
+
+// ---------------------------------------------------------------------------
+// Get Trade — fetch a single trade by ID.
+// ---------------------------------------------------------------------------
+message GetTradeRequest {
+  string trade_id = 1;
+  orion.common.v1.TenantContext tenant = 2;
+}
+
+// ---------------------------------------------------------------------------
+// Trade details — comprehensive trade record.
+// ---------------------------------------------------------------------------
+message TradeDetails {
+  string trade_id = 1;
+  string instrument_id = 2;
+  orion.common.v1.Side side = 3;
+  orion.common.v1.Decimal price = 4;
+  orion.common.v1.Decimal quantity = 5;
+  // Calculated: price × quantity
+  orion.common.v1.Decimal notional = 6;
+  TradeStatus status = 7;
+  // RFQ that originated this trade (if applicable)
+  optional string rfq_id = 8;
+  // Counterparty details
+  string counterparty_id = 9;
+  string counterparty_name = 10;
+  // Trader who executed
+  string trader_user_id = 11;
+  // Timestamps
+  orion.common.v1.Timestamp executed_at = 12;
+  optional orion.common.v1.Timestamp settled_at = 13;
+  // Context
+  orion.common.v1.TenantContext tenant = 14;
+  orion.common.v1.CorrelationContext correlation = 15;
+}
+
+// ---------------------------------------------------------------------------
+// List Trades — paginated query with filters.
+// ---------------------------------------------------------------------------
+message ListTradesRequest {
+  orion.common.v1.TenantContext tenant = 1;
+  orion.common.v1.PaginationRequest pagination = 2;
+  // Filters
+  optional string instrument_id = 3;
+  repeated TradeStatus statuses = 4;
+  optional orion.common.v1.Timestamp from_date = 5;
+  optional orion.common.v1.Timestamp to_date = 6;
+  optional string user_id = 7;
+  optional orion.common.v1.Side side = 8;
+}
+
+message ListTradesResponse {
+  repeated TradeDetails trades = 1;
+  orion.common.v1.PaginationResponse pagination = 2;
+}

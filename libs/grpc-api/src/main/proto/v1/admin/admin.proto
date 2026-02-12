@@ -1,0 +1,174 @@
+// =============================================================================
+// Orion Platform — Admin Service (v1)
+//
+// Administrative operations: instrument management, kill switch control,
+// and user trading limit configuration. Restricted to ADMIN role.
+// =============================================================================
+syntax = "proto3";
+
+package orion.admin.v1;
+
+import "v1/common/types.proto";
+import "v1/common/pagination.proto";
+
+option java_multiple_files = true;
+option java_package = "com.orion.admin.v1";
+
+// ---------------------------------------------------------------------------
+// Admin Service — platform administration and configuration.
+// ---------------------------------------------------------------------------
+service AdminService {
+  // Create a new tradeable instrument
+  rpc CreateInstrument(CreateInstrumentRequest) returns (InstrumentDetails);
+
+  // Update an existing instrument's properties
+  rpc UpdateInstrument(UpdateInstrumentRequest) returns (InstrumentDetails);
+
+  // Get instrument details
+  rpc GetInstrument(GetInstrumentRequest) returns (InstrumentDetails);
+
+  // List instruments with filters and pagination
+  rpc ListInstruments(ListInstrumentsRequest) returns (ListInstrumentsResponse);
+
+  // Enable or disable the platform-wide kill switch (halts all trading)
+  rpc SetKillSwitch(SetKillSwitchRequest) returns (SetKillSwitchResponse);
+
+  // Update a user's trading limits
+  rpc UpdateLimits(UpdateLimitsRequest) returns (UpdateLimitsResponse);
+}
+
+// ---------------------------------------------------------------------------
+// Instrument status — controls whether an instrument is tradeable.
+// ---------------------------------------------------------------------------
+enum InstrumentStatus {
+  INSTRUMENT_STATUS_UNSPECIFIED = 0;
+  INSTRUMENT_STATUS_ACTIVE = 1;
+  INSTRUMENT_STATUS_SUSPENDED = 2;
+  INSTRUMENT_STATUS_DELISTED = 3;
+}
+
+// ---------------------------------------------------------------------------
+// Instrument details — the full record of a tradeable instrument.
+// ---------------------------------------------------------------------------
+message InstrumentDetails {
+  string instrument_id = 1;
+  // Trading symbol (e.g., "EUR/USD", "US10Y")
+  string symbol = 2;
+  // Human-readable name
+  string name = 3;
+  // Asset class for routing and entitlement checks
+  orion.common.v1.AssetClass asset_class = 4;
+  InstrumentStatus status = 5;
+  // Pricing precision (number of decimal places)
+  optional int32 price_precision = 6;
+  // Minimum tradeable quantity
+  optional orion.common.v1.Decimal min_quantity = 7;
+  // Maximum tradeable quantity
+  optional orion.common.v1.Decimal max_quantity = 8;
+  // Minimum price increment
+  optional orion.common.v1.Decimal tick_size = 9;
+  orion.common.v1.Timestamp created_at = 10;
+  optional orion.common.v1.Timestamp updated_at = 11;
+}
+
+// ---------------------------------------------------------------------------
+// Create Instrument — add a new tradeable instrument to the platform.
+// ---------------------------------------------------------------------------
+message CreateInstrumentRequest {
+  string symbol = 1;
+  string name = 2;
+  orion.common.v1.AssetClass asset_class = 3;
+  optional int32 price_precision = 4;
+  optional orion.common.v1.Decimal min_quantity = 5;
+  optional orion.common.v1.Decimal max_quantity = 6;
+  optional orion.common.v1.Decimal tick_size = 7;
+  // Context
+  orion.common.v1.TenantContext tenant = 8;
+  orion.common.v1.UserContext user = 9;
+}
+
+// ---------------------------------------------------------------------------
+// Update Instrument — modify an existing instrument's properties.
+// Only provided fields are updated (partial update semantics).
+// ---------------------------------------------------------------------------
+message UpdateInstrumentRequest {
+  string instrument_id = 1;
+  optional string name = 2;
+  optional InstrumentStatus status = 3;
+  optional int32 price_precision = 4;
+  optional orion.common.v1.Decimal min_quantity = 5;
+  optional orion.common.v1.Decimal max_quantity = 6;
+  optional orion.common.v1.Decimal tick_size = 7;
+  // Context
+  orion.common.v1.TenantContext tenant = 8;
+  orion.common.v1.UserContext user = 9;
+}
+
+// ---------------------------------------------------------------------------
+// Get Instrument — fetch a single instrument by ID.
+// ---------------------------------------------------------------------------
+message GetInstrumentRequest {
+  string instrument_id = 1;
+  orion.common.v1.TenantContext tenant = 2;
+}
+
+// ---------------------------------------------------------------------------
+// List Instruments — paginated query with filters.
+// ---------------------------------------------------------------------------
+message ListInstrumentsRequest {
+  orion.common.v1.TenantContext tenant = 1;
+  orion.common.v1.PaginationRequest pagination = 2;
+  // Filter by asset class
+  optional orion.common.v1.AssetClass asset_class = 3;
+  // Filter by status
+  optional InstrumentStatus status = 4;
+}
+
+message ListInstrumentsResponse {
+  repeated InstrumentDetails instruments = 1;
+  orion.common.v1.PaginationResponse pagination = 2;
+}
+
+// ---------------------------------------------------------------------------
+// Kill Switch — emergency halt of all trading activity platform-wide.
+// ---------------------------------------------------------------------------
+message SetKillSwitchRequest {
+  // True = activate kill switch (halt trading), False = deactivate
+  bool enabled = 1;
+  // Reason for toggling (for audit trail)
+  optional string reason = 2;
+  orion.common.v1.TenantContext tenant = 3;
+  orion.common.v1.UserContext user = 4;
+}
+
+message SetKillSwitchResponse {
+  bool success = 1;
+  // Current state of the kill switch after the operation
+  bool kill_switch_active = 2;
+  orion.common.v1.Timestamp toggled_at = 3;
+}
+
+// ---------------------------------------------------------------------------
+// Update Limits — modify a user's trading limits (notional, order count, rate).
+// ---------------------------------------------------------------------------
+message UpdateLimitsRequest {
+  // User whose limits are being updated
+  string user_id = 1;
+  // Maximum notional value per trade
+  optional orion.common.v1.Decimal max_notional = 2;
+  // Maximum number of concurrent open orders
+  optional int32 max_open_orders = 3;
+  // Maximum requests per second (rate limiting)
+  optional int32 max_requests_per_second = 4;
+  // Context
+  orion.common.v1.TenantContext tenant = 5;
+  orion.common.v1.UserContext user = 6;
+}
+
+message UpdateLimitsResponse {
+  bool success = 1;
+  // User whose limits were updated
+  string user_id = 2;
+  // Error message if the update failed
+  optional string error_message = 3;
+}

@@ -300,3 +300,82 @@ com.orion.observability/
 5. **Health check as functional interface** — `HealthCheck` is `@FunctionalInterface` returning `CompletableFuture<ComponentHealth>`. Services register checks (Postgres, Redis, Kafka) and the registry aggregates them. Async by default for non-blocking health probes.
 6. **AC4 (Express/HTTP), AC5 (gRPC), AC6 (Kafka) deferred** — These are transport-layer integrations requiring Spring/gRPC/Kafka dependencies. The library provides the *what* (correlation context, metric factory, span helper); services provide the *how* (filters, interceptors, instrumentation).
 7. **Test utilities in `src/main`** — Same pattern as `orion-security`. `TestCorrelationContextFactory` and `InMemoryHealthCheck` are in `src/main/java` so other modules can import them as a regular dependency in test scope.
+
+---
+
+## US-01-06: Setup Protobuf Definitions and Code Generation
+
+### Business Context
+Orion services communicate via **gRPC** — a high-performance RPC framework that uses Protocol Buffers (Protobuf) as its interface definition language (IDL). Before any service can expose or consume a gRPC API, we need a **shared contract library** that defines every message type, enum, and service interface. This library (`orion-grpc-api`) is the single source of truth for all service-to-service communication contracts.
+
+Think of it as writing the **dictionary and grammar book** before anyone starts speaking the language. Every service — Market Data, RFQ, Execution, Post-Trade, Admin — must agree on the exact shape of requests and responses *before* any implementation begins.
+
+### Reinterpretation of US-01-06
+The original story was written for TypeScript/Node.js with Buf CLI. We reinterpret for Java 21 + Maven:
+
+| Original (TypeScript/Buf) | Reinterpreted (Java 21/Maven) |
+|---|---|
+| `buf.yaml` configuration | `protobuf-maven-plugin` in module POM |
+| `buf.gen.yaml` code generation config | `protoc` + `protoc-gen-grpc-java` plugins via Maven |
+| Generated TypeScript stubs in `/libs/proto-gen/` | Generated Java classes in `target/generated-sources/protobuf/` (auto-compiled into JAR) |
+| `npm run proto:generate` | `mvn compile` (automatic via plugin execution) |
+| `buf lint` validation | Proto best practices enforced by conventions + compilation + tests |
+| `buf breaking` compatibility check | Manual review + versioning strategy (v1 → v2 for breaking changes) |
+| `@bufbuild/protobuf-ts` TypeScript stubs | `protobuf-java` message classes + `grpc-java` service stubs |
+| Import as `@orion/proto-gen` | Maven dependency `com.orion:orion-grpc-api` |
+| `/proto/v1/` directory at repo root | `libs/grpc-api/src/main/proto/v1/` (standard Maven layout) |
+
+### Package Structure
+
+```
+libs/grpc-api/
+├── pom.xml                                    — Module POM with protobuf-maven-plugin
+└── src/
+    ├── main/proto/
+    │   └── v1/
+    │       ├── common/
+    │       │   ├── types.proto                — Timestamp, Money, Decimal, TenantContext, Side, AssetClass enums
+    │       │   ├── pagination.proto           — PaginationRequest/Response for list operations
+    │       │   └── errors.proto               — ErrorDetail, ErrorResponse
+    │       ├── marketdata/
+    │       │   └── marketdata.proto           — MarketDataService: GetSnapshot, StreamTicks, GetHistoricalTicks
+    │       ├── rfq/
+    │       │   └── rfq.proto                  — RFQService: CreateRFQ, GetRFQ, AcceptQuote, CancelRFQ, WatchRFQ
+    │       ├── execution/
+    │       │   └── execution.proto            — ExecutionService: GetTrade, ListTrades
+    │       ├── posttrade/
+    │       │   └── posttrade.proto            — PostTradeService: GetConfirmation, GetSettlementStatus
+    │       └── admin/
+    │           └── admin.proto                — AdminService: CreateInstrument, SetKillSwitch, UpdateLimits
+    └── test/java/com/orion/grpc/
+        ├── CommonTypesProtoTest.java          — Verifies common type construction and serialization
+        ├── PaginationProtoTest.java           — Pagination message tests
+        ├── ErrorsProtoTest.java               — Error message tests
+        ├── MarketDataProtoTest.java           — Market data messages + service descriptor
+        ├── RfqProtoTest.java                  — RFQ messages + service descriptor
+        ├── ExecutionProtoTest.java            — Trade messages + service descriptor
+        ├── PostTradeProtoTest.java            — Confirmation/settlement messages + service descriptor
+        └── AdminProtoTest.java                — Instrument/limits messages + service descriptor
+```
+
+### Generated Java Packages (by protoc)
+
+| Proto Package | Java Package | Contents |
+|---|---|---|
+| `orion.common.v1` | `com.orion.common.v1` | Timestamp, Money, Decimal, TenantContext, UserContext, CorrelationContext, Side, AssetClass |
+| `orion.common.v1` | `com.orion.common.v1` | PaginationRequest, PaginationResponse, ErrorDetail, ErrorResponse |
+| `orion.marketdata.v1` | `com.orion.marketdata.v1` | MarketDataServiceGrpc, SnapshotRequest, MarketTick, MarketSnapshot, etc. |
+| `orion.rfq.v1` | `com.orion.rfq.v1` | RFQServiceGrpc, CreateRFQRequest, RFQDetails, Quote, RFQUpdate, etc. |
+| `orion.execution.v1` | `com.orion.execution.v1` | ExecutionServiceGrpc, TradeDetails, TradeStatus, etc. |
+| `orion.posttrade.v1` | `com.orion.posttrade.v1` | PostTradeServiceGrpc, ConfirmationDetails, SettlementDetails, etc. |
+| `orion.admin.v1` | `com.orion.admin.v1` | AdminServiceGrpc, InstrumentDetails, KillSwitch messages, etc. |
+
+### Design Decisions
+1. **Maven module `libs/grpc-api`** — Keeps proto files + generated code in a standard Maven module. Other modules depend on `orion-grpc-api` as a regular Maven dependency. The `/proto/` root directory is kept as documentation reference.
+2. **`protobuf-maven-plugin` + `protoc-gen-grpc-java`** — Standard Java ecosystem tools. `protoc` compiles .proto → Java message classes; `protoc-gen-grpc-java` generates gRPC service stubs (ImplBase, Stub, BlockingStub). No Buf CLI needed.
+3. **`java_multiple_files = true`** — Each proto message becomes its own .java file instead of inner classes. IDE-friendly, easier imports, smaller compilation units.
+4. **String-based financial amounts** — `Money.amount` and `Decimal.value` are strings, not doubles. Protobuf doesn't have a native decimal type, and floating-point is unsuitable for financial calculations. Services parse to `java.math.BigDecimal`.
+5. **Custom `Timestamp` over `google.protobuf.Timestamp`** — The Orion timestamp is structurally identical but lives in our namespace for consistency. Could be replaced with the well-known type later if needed.
+6. **Proto v1 versioning** — All definitions under `v1/` package. Breaking changes require a `v2/` directory with new package names. Within v1, only additive changes (new fields, new RPCs).
+7. **`optional` keyword for nullable fields** — Proto3 `optional` generates `hasXxx()` methods in Java. Used for fields that are genuinely optional (e.g., `rfq_id` on a trade, `tenant_name` on context).
+8. **Compiler warnings suppressed** — Generated protobuf code produces `-Xlint` warnings (unchecked casts, raw types). Module POM overrides compiler plugin with `-Xlint:none`.

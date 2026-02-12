@@ -1,0 +1,99 @@
+// =============================================================================
+// Orion Platform — Shared Common Types (v1)
+//
+// Foundational message types and enums used across all Orion gRPC services.
+// Financial amounts use string representation to preserve arbitrary precision.
+// =============================================================================
+syntax = "proto3";
+
+package orion.common.v1;
+
+option java_multiple_files = true;
+option java_package = "com.orion.common.v1";
+
+// ---------------------------------------------------------------------------
+// Timestamp with nanosecond precision for event ordering and latency tracking.
+// Services convert to/from java.time.Instant.
+// ---------------------------------------------------------------------------
+message Timestamp {
+  // Seconds since Unix epoch (1970-01-01T00:00:00Z)
+  int64 seconds = 1;
+  // Sub-second nanoseconds (0–999,999,999)
+  int32 nanos = 2;
+}
+
+// ---------------------------------------------------------------------------
+// Monetary amount with currency — string-based to avoid floating-point errors.
+// Services parse amount to java.math.BigDecimal.
+// ---------------------------------------------------------------------------
+message Money {
+  // Amount as string to preserve precision (e.g., "1234567.89")
+  string amount = 1;
+  // ISO 4217 currency code (e.g., "USD", "EUR", "GBP")
+  string currency = 2;
+}
+
+// ---------------------------------------------------------------------------
+// Arbitrary-precision decimal — for prices, quantities, notionals.
+// String representation avoids IEEE 754 floating-point precision loss.
+// ---------------------------------------------------------------------------
+message Decimal {
+  // Value as string (e.g., "99.875", "1000000.00")
+  string value = 1;
+}
+
+// ---------------------------------------------------------------------------
+// Tenant context for multi-tenancy — attached to every cross-service request.
+// Enables tenant isolation at the gRPC transport layer.
+// ---------------------------------------------------------------------------
+message TenantContext {
+  // Unique tenant identifier (required)
+  string tenant_id = 1;
+  // Human-readable tenant name (optional — for logging/display)
+  optional string tenant_name = 2;
+}
+
+// ---------------------------------------------------------------------------
+// User context for audit trails — who initiated the action.
+// ---------------------------------------------------------------------------
+message UserContext {
+  // Unique user identifier
+  string user_id = 1;
+  // Username for display
+  string username = 2;
+  // Email address (optional)
+  optional string email = 3;
+}
+
+// ---------------------------------------------------------------------------
+// Correlation context for distributed tracing across gRPC calls.
+// Propagated via gRPC metadata headers between services.
+// ---------------------------------------------------------------------------
+message CorrelationContext {
+  // Correlation ID linking related requests across services
+  string correlation_id = 1;
+  // Causation ID — the parent request that triggered this one
+  optional string causation_id = 2;
+}
+
+// ---------------------------------------------------------------------------
+// Trade side — buy or sell.
+// UNSPECIFIED (0) is the proto3 default for unset fields.
+// ---------------------------------------------------------------------------
+enum Side {
+  SIDE_UNSPECIFIED = 0;
+  SIDE_BUY = 1;
+  SIDE_SELL = 2;
+}
+
+// ---------------------------------------------------------------------------
+// Tradeable asset class — drives routing, pricing, and entitlements.
+// ---------------------------------------------------------------------------
+enum AssetClass {
+  ASSET_CLASS_UNSPECIFIED = 0;
+  ASSET_CLASS_FX = 1;
+  ASSET_CLASS_RATES = 2;
+  ASSET_CLASS_CREDIT = 3;
+  ASSET_CLASS_EQUITIES = 4;
+  ASSET_CLASS_COMMODITIES = 5;
+}

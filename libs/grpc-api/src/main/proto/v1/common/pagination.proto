@@ -1,0 +1,42 @@
+// =============================================================================
+// Orion Platform — Pagination Messages (v1)
+//
+// Standard pagination types for all list/search RPCs.
+// Supports both offset-based and cursor-based pagination.
+// =============================================================================
+syntax = "proto3";
+
+package orion.common.v1;
+
+option java_multiple_files = true;
+option java_package = "com.orion.common.v1";
+
+// ---------------------------------------------------------------------------
+// Pagination parameters sent by the client in list requests.
+// ---------------------------------------------------------------------------
+message PaginationRequest {
+  // Page number (1-indexed). Default: 1.
+  int32 page = 1;
+  // Items per page (max 100, default: 20)
+  int32 page_size = 2;
+  // Opaque cursor for cursor-based pagination (alternative to page number)
+  optional string cursor = 3;
+}
+
+// ---------------------------------------------------------------------------
+// Pagination metadata returned in list responses.
+// ---------------------------------------------------------------------------
+message PaginationResponse {
+  // Current page number
+  int32 page = 1;
+  // Items per page
+  int32 page_size = 2;
+  // Total items matching the query
+  int64 total_items = 3;
+  // Total pages available
+  int32 total_pages = 4;
+  // Opaque cursor for the next page (cursor-based)
+  optional string next_cursor = 5;
+  // Whether more pages exist beyond the current page
+  bool has_next = 6;
+}

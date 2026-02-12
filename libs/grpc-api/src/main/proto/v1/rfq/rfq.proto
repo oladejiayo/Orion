@@ -1,0 +1,231 @@
+// =============================================================================
+// Orion Platform — RFQ Service (v1)
+//
+// Request-for-Quote lifecycle management. Handles the full RFQ workflow:
+// create → distribute to LPs → collect quotes → accept best → execute trade.
+// Supports both point-in-time queries and real-time streaming updates.
+// =============================================================================
+syntax = "proto3";
+
+package orion.rfq.v1;
+
+import "v1/common/types.proto";
+import "v1/common/pagination.proto";
+
+option java_multiple_files = true;
+option java_package = "com.orion.rfq.v1";
+
+// ---------------------------------------------------------------------------
+// RFQ Service — manages the full request-for-quote lifecycle.
+// ---------------------------------------------------------------------------
+service RFQService {
+  // Create a new RFQ and distribute to liquidity providers
+  rpc CreateRFQ(CreateRFQRequest) returns (CreateRFQResponse);
+
+  // Get full RFQ details including all quotes
+  rpc GetRFQ(GetRFQRequest) returns (RFQDetails);
+
+  // List RFQs with filtering and pagination
+  rpc ListRFQs(ListRFQsRequest) returns (ListRFQsResponse);
+
+  // Accept a specific quote on an RFQ
+  rpc AcceptQuote(AcceptQuoteRequest) returns (AcceptQuoteResponse);
+
+  // Cancel an active RFQ
+  rpc CancelRFQ(CancelRFQRequest) returns (CancelRFQResponse);
+
+  // Watch an RFQ for real-time updates (server-streaming)
+  rpc WatchRFQ(WatchRFQRequest) returns (stream RFQUpdate);
+}
+
+// ---------------------------------------------------------------------------
+// RFQ status — tracks the lifecycle from creation to completion.
+// ---------------------------------------------------------------------------
+enum RFQStatus {
+  RFQ_STATUS_UNSPECIFIED = 0;
+  RFQ_STATUS_CREATED = 1;
+  RFQ_STATUS_SENT = 2;
+  RFQ_STATUS_QUOTING = 3;
+  RFQ_STATUS_ACCEPTED = 4;
+  RFQ_STATUS_REJECTED = 5;
+  RFQ_STATUS_EXPIRED = 6;
+  RFQ_STATUS_CANCELLED = 7;
+  RFQ_STATUS_TRADED = 8;
+}
+
+// ---------------------------------------------------------------------------
+// Create RFQ — initiates a new request for quote.
+// ---------------------------------------------------------------------------
+message CreateRFQRequest {
+  string instrument_id = 1;
+  orion.common.v1.Side side = 2;
+  orion.common.v1.Decimal quantity = 3;
+  // How long the RFQ stays active (seconds from now)
+  int32 expiry_seconds = 4;
+  // Minimum acceptable quantity for partial fills
+  optional orion.common.v1.Decimal min_quantity = 5;
+  // Whether partial fills are allowed
+  bool allow_partial = 6;
+  // Target a specific venue (omit for all venues)
+  optional string venue_id = 7;
+  // Client-generated idempotency key to prevent duplicate RFQs on retry
+  string idempotency_key = 8;
+  // Multi-tenancy context
+  orion.common.v1.TenantContext tenant = 9;
+  // Requesting user
+  orion.common.v1.UserContext user = 10;
+  // Distributed tracing
+  orion.common.v1.CorrelationContext correlation = 11;
+}
+
+message CreateRFQResponse {
+  string rfq_id = 1;
+  RFQStatus status = 2;
+  orion.common.v1.Timestamp created_at = 3;
+  orion.common.v1.Timestamp expires_at = 4;
+}
+
+// ---------------------------------------------------------------------------
+// Get RFQ — retrieve full details of a specific RFQ.
+// ---------------------------------------------------------------------------
+message GetRFQRequest {
+  string rfq_id = 1;
+  orion.common.v1.TenantContext tenant = 2;
+}
+
+// ---------------------------------------------------------------------------
+// Full RFQ details — includes all quotes and trade linkage.
+// ---------------------------------------------------------------------------
+message RFQDetails {
+  string rfq_id = 1;
+  string instrument_id = 2;
+  orion.common.v1.Side side = 3;
+  orion.common.v1.Decimal quantity = 4;
+  RFQStatus status = 5;
+  orion.common.v1.Timestamp created_at = 6;
+  orion.common.v1.Timestamp expires_at = 7;
+  // All quotes received from liquidity providers
+  repeated Quote quotes = 8;
+  // The accepted quote (present only if status is ACCEPTED or TRADED)
+  optional Quote accepted_quote = 9;
+  // Resulting trade ID (present only if status is TRADED)
+  optional string trade_id = 10;
+  // User who initiated the RFQ
+  string requester_user_id = 11;
+}
+
+// ---------------------------------------------------------------------------
+// Quote — a price offered by a liquidity provider on an RFQ.
+// ---------------------------------------------------------------------------
+message Quote {
+  string quote_id = 1;
+  string rfq_id = 2;
+  // Liquidity provider identifier
+  string lp_id = 3;
+  string lp_name = 4;
+  orion.common.v1.Decimal price = 5;
+  orion.common.v1.Decimal quantity = 6;
+  orion.common.v1.Timestamp received_at = 7;
+  // Quote validity window
+  orion.common.v1.Timestamp valid_until = 8;
+  // Whether this is the current best quote
+  bool is_best = 9;
+}
+
+// ---------------------------------------------------------------------------
+// List RFQs — paginated query with filters.
+// ---------------------------------------------------------------------------
+message ListRFQsRequest {
+  orion.common.v1.TenantContext tenant = 1;
+  orion.common.v1.PaginationRequest pagination = 2;
+  // Filter by instrument
+  optional string instrument_id = 3;
+  // Filter by one or more statuses
+  repeated RFQStatus statuses = 4;
+  // Date range filter
+  optional orion.common.v1.Timestamp from_date = 5;
+  optional orion.common.v1.Timestamp to_date = 6;
+  // Filter by user
+  optional string user_id = 7;
+}
+
+message ListRFQsResponse {
+  repeated RFQDetails rfqs = 1;
+  orion.common.v1.PaginationResponse pagination = 2;
+}
+
+// ---------------------------------------------------------------------------
+// Accept Quote — accept a specific LP's quote on an RFQ.
+// ---------------------------------------------------------------------------
+message AcceptQuoteRequest {
+  string rfq_id = 1;
+  string quote_id = 2;
+  // Client-generated idempotency key for safe retries
+  string idempotency_key = 3;
+  orion.common.v1.TenantContext tenant = 4;
+  orion.common.v1.UserContext user = 5;
+  orion.common.v1.CorrelationContext correlation = 6;
+}
+
+message AcceptQuoteResponse {
+  bool success = 1;
+  RFQStatus new_status = 2;
+  // Error message if acceptance failed
+  optional string error_message = 3;
+  // Trade ID created from the accepted quote
+  optional string trade_id = 4;
+}
+
+// ---------------------------------------------------------------------------
+// Cancel RFQ — cancel an active RFQ before it expires or executes.
+// ---------------------------------------------------------------------------
+message CancelRFQRequest {
+  string rfq_id = 1;
+  // Reason for cancellation (for audit)
+  optional string reason = 2;
+  orion.common.v1.TenantContext tenant = 3;
+  orion.common.v1.UserContext user = 4;
+}
+
+message CancelRFQResponse {
+  bool success = 1;
+  RFQStatus new_status = 2;
+  optional string error_message = 3;
+}
+
+// ---------------------------------------------------------------------------
+// Watch RFQ — server-streaming updates for a specific RFQ.
+// ---------------------------------------------------------------------------
+message WatchRFQRequest {
+  string rfq_id = 1;
+  orion.common.v1.TenantContext tenant = 2;
+  orion.common.v1.CorrelationContext correlation = 3;
+}
+
+// ---------------------------------------------------------------------------
+// RFQ Update — polymorphic update via oneof (new quote, expiry, acceptance, cancellation).
+// ---------------------------------------------------------------------------
+message RFQUpdate {
+  string rfq_id = 1;
+  RFQStatus status = 2;
+  oneof update {
+    Quote new_quote = 3;
+    RFQExpired expired = 4;
+    QuoteAccepted accepted = 5;
+    RFQCancelled cancelled = 6;
+  }
+}
+
+message RFQExpired {
+  orion.common.v1.Timestamp expired_at = 1;
+}
+
+message QuoteAccepted {
+  string quote_id = 1;
+  string trade_id = 2;
+}
+
+message RFQCancelled {
+  string reason = 1;
+  orion.common.v1.Timestamp cancelled_at = 2;
+}
