@@ -279,15 +279,110 @@ Service wants to announce: "Trade #123 executed!"
 
 ---
 
+### ✅ US-01-04: Setup Shared Security Library
+
+**📅 Implemented:** 2025-07-13  
+**📁 Location:** `libs/security/`
+
+#### What Did We Build?
+
+We created a **security toolbox** — a shared library of building blocks that every service will use to answer three questions: *"Who are you?"*, *"Which company do you work for?"*, and *"Are you allowed to do that?"*
+
+#### Why Do We Need This?
+
+Imagine our trading floor has a **security desk** at the entrance. Every person who walks in needs:
+
+1. **An ID badge** → `AuthenticatedUser` (who you are — name, email, user ID)
+2. **A company lanyard** → `TenantContext` (which firm you belong to — Goldman, JPMorgan, etc.)
+3. **An access list** → `Role` + `Entitlements` (what you're allowed to do — trade FX? View risk reports? Admin access?)
+
+Without a shared security library, every service would invent its own way of checking IDs. One service might let you in with just a name, another might need three forms of ID. Chaos! The shared library ensures **everyone checks the same way**.
+
+#### The Parts We Created
+
+| File | What It Is | Simple Explanation |
+|------|-----------|-------------------|
+| `AuthenticatedUser.java` | User identity | Your ID badge — userId, email, username, display name |
+| `TenantContext.java` | Company identity | Your company lanyard — tenantId, name, type (Standard/Premium/Enterprise) |
+| `Role.java` | Platform roles | What hat you wear — Trader, Sales, Risk, Analyst, Admin, Platform. Admins inherit all other hats. |
+| `Entitlements.java` | What you can trade | Your access pass — which asset classes (FX, Rates, etc.), instruments, venues, and trading limits |
+| `TradingLimits.java` | Trading guardrails | Speed limits — max notional, max requests per second, max open orders |
+| `OrionSecurityContext.java` | The full security package | Everything above bundled together — your badge + lanyard + access pass + a tracking number |
+| `BearerTokenExtractor.java` | Token reader | Reads the "Bearer xyz123..." from an HTTP Authorization header — like scanning a barcode on your badge |
+| `RoleChecker.java` | Role verifier | Checks "do you have this role?" with hierarchy support — an Admin automatically has Trader, Sales, Risk, and Analyst roles |
+| `EntitlementChecker.java` | Entitlement verifier | Checks "can you trade this?" — asset class, instrument, venue, and notional limit checks |
+| `TenantIsolationEnforcer.java` | Company firewall | Prevents Goldman from seeing JPMorgan's trades. Throws an alarm if there's a mismatch. |
+| `SecurityContextSerializer.java` | Context transporter | Packs the security context into a compact string (JSON → Base64) for passing between services via gRPC |
+| `SecurityContextValidator.java` | Context checker | Makes sure a security context has all required fields before we trust it |
+| `TestSecurityContextFactory.java` | Test helper | Creates fake security contexts for unit tests — so every test doesn't have to build one from scratch |
+
+#### How It Works (The Flow)
+
+```
+HTTP Request arrives with: "Authorization: Bearer eyJhbG..."
+         │
+         ▼
+┌──────────────────────────────────────────────┐
+│     BearerTokenExtractor.extract(header)     │
+│  → Extracts "eyJhbG..." from "Bearer ..."   │
+└─────────────────┬────────────────────────────┘
+                  │
+                  ▼
+   (Service layer validates JWT, builds context)
+                  │
+                  ▼
+┌──────────────────────────────────────────────┐
+│         OrionSecurityContext                  │
+│  ┌─────────────────────────────────────┐     │
+│  │  user:    trader-42 / jane@acme.com │     │
+│  │  tenant:  acme-corp / Premium       │     │
+│  │  roles:   [SALES]  (implies TRADER) │     │
+│  │  entitlements: FX, RATES            │     │
+│  │           maxNotional: 50,000,000   │     │
+│  └─────────────────────────────────────┘     │
+└─────────────────┬────────────────────────────┘
+                  │
+         ┌────────┼────────┐
+         ▼        ▼        ▼
+  ┌────────┐ ┌────────┐ ┌───────────┐
+  │ Role   │ │ Entitl.│ │ Tenant    │
+  │ Check  │ │ Check  │ │ Isolation │
+  │        │ │        │ │           │
+  │ SALES  │ │ Can    │ │ acme-corp │
+  │ implies│ │ trade  │ │    ==     │
+  │ TRADER │ │ FX? ✅ │ │ acme-corp │
+  │   ✅   │ │        │ │    ✅     │
+  └────────┘ └────────┘ └───────────┘
+         │        │        │
+         └────────┴────────┘
+                  │
+                  ▼
+         Request proceeds ✅
+```
+
+#### Key Concepts
+
+| Concept | Simple Explanation |
+|---------|-------------------|
+| **RBAC** | "Role-Based Access Control" — you get permissions based on your role (Admin, Trader, etc.). Like job titles granting building access. |
+| **ABAC** | "Attribute-Based Access Control" — permissions based on attributes (can trade FX, can access venue X). More fine-grained than RBAC. |
+| **Role Hierarchy** | Admin inherits Trader + Sales + Risk + Analyst roles. Sales inherits Trader. So checking "are you a Trader?" returns true for Sales and Admin too. |
+| **Tenant Isolation** | Each company (tenant) can only see their own data. Goldman can't peek at JPMorgan's trades — enforced at every service boundary. |
+| **Bearer Token** | A "key card" string passed in HTTP headers: `Authorization: Bearer <token>`. The token is usually a JWT containing user info. |
+| **Base64** | An encoding that turns binary data into safe text. Used to transport the security context through gRPC metadata headers (which only accept strings). |
+| **Immutable Records** | Java records can't be changed after creation. A security context is frozen — no one can sneak in extra permissions after the fact. |
+| **Empty Set = All Allowed** | If a user's entitled instruments set is empty, they can trade ALL instruments. Think of it like a VIP pass — no restrictions listed means full access. |
+
+---
+
 ## 🔮 What's Coming Next
 
 | Story | What It Will Add |
 |---|---|
-| US-01-04 | Shared security library — authentication and authorization building blocks |
 | US-01-05 | Shared observability library — logging, metrics, and tracing |
 | US-01-06 | Protobuf definitions — gRPC service contracts |
 | US-01-07 | GitHub Actions CI — automated build and test on every push |
 
 ---
 
-*Last updated after US-01-03*
+*Last updated after US-01-04*

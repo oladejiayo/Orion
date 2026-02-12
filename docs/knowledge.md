@@ -180,3 +180,67 @@ com.orion.eventmodel/
 5. **Jackson for serialization** — Spring Boot's default JSON library. The `JavaTimeModule` handles `Instant` ↔ ISO 8601. Generic `T` payload is handled via `TypeReference` or `JavaType`.
 6. **Manual validation over Bean Validation** — No annotation processing dependency. Simple, fast, returns a `ValidationResult` record with all errors at once.
 7. **Builder pattern** — While records are immutable, we provide a fluent builder via `EventFactory` for ergonomic event creation with sensible defaults.
+
+---
+
+## US-01-04: Setup Shared Security Library
+
+### Business Context
+Orion is a **multi-tenant** trading platform. Every API call and gRPC request must carry authentication (who is the caller?), authorization (what are they allowed to do?), and tenant isolation (which firm's data can they see?). Without a shared security library, every service would re-implement these checks differently, creating security gaps and inconsistencies.
+
+This library (`orion-security`) provides the **security vocabulary** — the records, enums, and pure-Java utilities that all services share. Actual JWT validation and Spring Security filter integration happen at the service layer (Spring Security Resource Server). This library stays framework-agnostic, just like `orion-event-model`.
+
+### Reinterpretation of US-01-04
+The original story was written for TypeScript/Express.js. We reinterpret for Java 21:
+
+| Original (TypeScript/Express) | Reinterpreted (Java 21) |
+|---|---|
+| `SecurityContext` interface | `OrionSecurityContext` record |
+| `AuthenticatedUser` interface | `AuthenticatedUser` record |
+| `TenantContext` interface | `TenantContext` record |
+| `Entitlements` interface | `Entitlements` record (with `Set<AssetClass>`) |
+| `TradingLimits` interface | `TradingLimits` record |
+| `Roles` const object | `Role` Java enum with hierarchy support |
+| `AssetClass` enum | `AssetClass` Java enum |
+| `extractBearerToken()` function | `BearerTokenExtractor.extract()` static method |
+| `hasRole()` / `requireRole()` | `RoleChecker.hasRole()` / `hasAnyRole()` / `hasAllRoles()` |
+| `checkEntitlement()` | `EntitlementChecker` with asset class/instrument/venue/limit checks |
+| `enforceTenantIsolation()` | `TenantIsolationEnforcer.enforce()` throws `TenantMismatchException` |
+| Express auth middleware | Deferred to service layer (Spring Security filter) |
+| gRPC interceptors | Deferred to service layer (grpc-java ServerInterceptor) |
+| `serializeContext()` / `deserializeContext()` | `SecurityContextSerializer` with JSON + Base64 |
+| Mock JWT generator | `TestSecurityContextFactory` in `com.orion.security.testing` |
+
+### Package Structure
+
+```
+com.orion.security/
+├── OrionSecurityContext.java         — Record: full security context (user + tenant + roles + entitlements)
+├── AuthenticatedUser.java            — Record: authenticated user info
+├── TenantContext.java                — Record: tenant info for isolation
+├── TradingLimits.java                — Record: per-user trading limits
+├── Entitlements.java                 — Record: ABAC entitlements (asset classes, instruments, venues, limits)
+├── Role.java                         — Enum: platform roles with hierarchy (ADMIN > SALES > TRADER)
+├── AssetClass.java                   — Enum: tradeable asset classes
+├── TenantType.java                   — Enum: tenant tiers (STANDARD, PREMIUM, ENTERPRISE)
+├── BearerTokenExtractor.java         — Utility: extracts token from "Bearer xxx" header
+├── RoleChecker.java                  — Utility: RBAC checks with hierarchy support
+├── EntitlementChecker.java           — Utility: ABAC checks for asset class/instrument/venue/limits
+├── TenantIsolationEnforcer.java      — Utility: enforces tenant match, throws on mismatch
+├── TenantMismatchException.java      — Runtime exception for tenant isolation violations
+├── SecurityContextSerializer.java    — Utility: JSON+Base64 serialize/deserialize for gRPC propagation
+├── SecurityContextValidator.java     — Utility: validates required security context fields
+├── SecurityValidationResult.java     — Record: validation outcome with error list
+└── testing/
+    └── TestSecurityContextFactory.java — Test utility: creates mock contexts for service tests
+```
+
+### Design Decisions
+1. **Pure Java library — no Spring dependency** — Consistent with `orion-event-model`. Spring Security filter integration deferred to service stories. This keeps the library usable by any Java project.
+2. **Records for all value types** — `OrionSecurityContext`, `AuthenticatedUser`, `TenantContext`, `Entitlements`, `TradingLimits` are all immutable records. Thread-safe by design for concurrent trading workloads.
+3. **Role hierarchy via enum** — `ADMIN.implies(TRADER)` returns true. This avoids scattering hierarchy logic across services. The hierarchy is defined once in the enum.
+4. **ABAC with entitlements** — `Entitlements` record holds allowed asset classes, instruments, venues, and trading limits. Empty set = "all allowed" (no restrictions).
+5. **Explicit tenant isolation** — `TenantIsolationEnforcer.enforce()` throws `TenantMismatchException` (a RuntimeException). Fail-fast on cross-tenant access. Every service must call this before accessing tenant-scoped resources.
+6. **SecurityContextSerializer for gRPC propagation** — Service-to-service calls carry security context in gRPC metadata as Base64-encoded JSON. The serializer handles the encode/decode.
+7. **TestSecurityContextFactory in main source** — Placed in `com.orion.security.testing` package in `src/main` so other modules can import it in their test scope. Avoids the complexity of Maven test-jars.
+8. **Jackson for serialization** — Same as event-model. Used only for SecurityContextSerializer (gRPC metadata propagation).

@@ -78,7 +78,7 @@
         <!-- Shared libraries (built first — no Spring Boot dependencies initially) -->
         <!-- <module>libs/common</module> -->
         <module>libs/event-model</module>
-        <!-- <module>libs/security</module> -->
+        <module>libs/security</module>
         <!-- <module>libs/observability</module> -->
 
         <!-- Microservices (depend on libs) -->
@@ -142,12 +142,12 @@
                 <artifactId>orion-event-model</artifactId>
                 <version>${project.version}</version>
             </dependency>
-            <!--
             <dependency>
                 <groupId>com.orion</groupId>
                 <artifactId>orion-security</artifactId>
                 <version>${project.version}</version>
             </dependency>
+            <!--
             <dependency>
                 <groupId>com.orion</groupId>
                 <artifactId>orion-observability</artifactId>
