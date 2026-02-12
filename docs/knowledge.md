@@ -52,6 +52,70 @@ The original user story was written with Nx/TypeScript tooling in mind. We reint
 
 ---
 
+## US-01-07: Configure GitHub Actions CI Pipeline
+
+### Business Context
+Before any production code lands on `main`, the team needs automated quality gates. US-01-07 creates the GitHub Actions CI pipeline that enforces build integrity, runs all tests, validates proto definitions, scans for dependency vulnerabilities, and produces Docker images — all triggered automatically on PRs and pushes.
+
+### Reinterpretation of US-01-07
+The original story was written for Nx/TypeScript/Node.js tooling (npm ci, nx affected, buf lint, Dockerfile.node). We reinterpret every acceptance criterion for Java 21 / Maven / Spring Boot:
+
+| Original (Nx/TypeScript) | Reinterpreted (Java 21/Maven) |
+|---|---|
+| `npm ci` / `npx nx affected:build` | `./mvnw verify -B --no-transfer-progress` (Maven reactor builds all) |
+| Nx computation caching | Maven dependency caching via `actions/setup-java@v4 cache: maven` in reusable composite action |
+| `buf lint` / `buf breaking` | `./mvnw compile -pl libs/grpc-api -am` (protobuf-maven-plugin compiles protos) |
+| Jest test reports | JUnit XML via `dorny/test-reporter@v1` + Surefire reports |
+| Codecov coverage upload | JaCoCo HTML reports via `./mvnw verify -Pcoverage` |
+| `npm audit` / Snyk | `aquasecurity/trivy-action@v0` filesystem scan + SARIF upload to GitHub Security |
+| Dockerfile per service (Node.js) | `services/Dockerfile.template` — multi-stage eclipse-temurin:21-jdk → 21-jre-alpine |
+| Docker Hub push | ghcr.io (GitHub Container Registry) via `docker/login-action@v3` |
+| GitHub Actions pinned to `@v3` | All actions pinned to exact major version (`@v4`, `@v3`, `@v1`, etc.) |
+
+### Acceptance Criteria Mapping
+
+| AC | Description | Deliverables |
+|---|---|---|
+| AC1 | Pull Request workflow | `.github/workflows/ci-pr.yml` — triggers on PRs to main, Java 21, `mvnw verify`, JUnit test reporter, concurrency cancel-in-progress |
+| AC2 | Main branch workflow | `.github/workflows/ci-main.yml` — triggers on push to main, `mvnw verify -Pcoverage`, JaCoCo reports, Surefire XML upload, dependency audit job |
+| AC3 | Build caching | `.github/actions/setup-java-maven/action.yml` — reusable composite action with Maven cache; all workflows reference it |
+| AC4 | Test reporting | `dorny/test-reporter@v1` reads `**/target/surefire-reports/*.xml`, creates GitHub check annotations |
+| AC5 | Proto validation | `.github/workflows/proto-validate.yml` — triggers on proto file changes, compiles and tests grpc-api module |
+| AC6 | Security scanning | Trivy filesystem scan in `ci-main.yml` dependency-audit job → SARIF → GitHub Security tab |
+| AC7 | Docker build | `.github/workflows/docker-build.yml` — multi-stage build, ghcr.io push, SHA+branch+latest tags |
+
+### CI Architecture
+
+```
+.github/
+├── actions/
+│   └── setup-java-maven/
+│       └── action.yml                 ← Reusable composite action (JDK 21 + Maven cache)
+├── workflows/
+│   ├── ci-pr.yml                      ← PR validation: build + test + report
+│   ├── ci-main.yml                    ← Main CI: build + coverage + dependency audit
+│   ├── proto-validate.yml             ← Proto compilation check on proto changes
+│   └── docker-build.yml               ← Docker image build + push to ghcr.io
+├── CODEOWNERS                         ← Automatic PR review routing
+└── ...
+services/
+└── Dockerfile.template                ← Multi-stage Docker template for Spring Boot services
+```
+
+### Key Decisions
+1. **Reusable composite action** — `.github/actions/setup-java-maven/action.yml` sets up JDK 21 (Temurin) and Maven cache in one step. All 4 workflows reference it, eliminating duplication. Changes to Java version or cache strategy are made in one place.
+2. **Concurrency cancel-in-progress** — PR workflow uses `concurrency: group: pr-${{ github.event.pull_request.number }}` with `cancel-in-progress: true`. New pushes to the same PR cancel stale runs, saving runner minutes.
+3. **Trivy over OWASP Dependency-Check** — Trivy is faster, produces SARIF natively, and integrates with GitHub Security tab. OWASP dependency-check is heavy and slow for CI. Trivy's `fs` mode scans Maven POM dependency tree.
+4. **JaCoCo for coverage** — Activated via Maven profile (`-Pcoverage`). Only runs on main branch to avoid slowing PR builds. HTML reports uploaded as artifacts; no external coverage service required initially.
+5. **GitHub Container Registry (ghcr.io)** — Free for public repos, integrated with GitHub. Uses `GITHUB_TOKEN` for authentication — no separate registry credentials needed.
+6. **Multi-stage Dockerfile template** — `eclipse-temurin:21-jdk` for build → `eclipse-temurin:21-jre-alpine` for runtime. Non-root user (`orion:1001`), JVM container tuning (`-XX:+UseContainerSupport`, `-XX:MaxRAMPercentage=75.0`), ports 8080+9090.
+7. **CODEOWNERS for review routing** — Global ownership plus path-specific rules for libs/, proto/, infra/, .github/, docs/. Ensures the right reviewers are auto-assigned.
+8. **dorny/test-reporter for JUnit** — Reads Surefire XML reports and creates GitHub check annotations directly on PR diffs. Developers see test failures inline without digging through logs.
+9. **Timeout on all workflows** — `timeout-minutes: 15` (PR) and `timeout-minutes: 20` (main) prevent hung builds from consuming runner hours.
+10. **Docker build with paths-filter** — Uses `dorny/paths-filter@v3` to detect which services changed, building only affected Docker images. Placeholder structure ready for future services.
+
+---
+
 ## US-01-02: Create Docker Compose Local Development Environment
 
 ### Business Context

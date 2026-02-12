@@ -1,0 +1,129 @@
+# ==============================================================================
+# Docker Build Workflow — builds and pushes container images for services.
+#
+# WHY: Every service needs a container image for deployment to ECS/Fargate.
+# This workflow builds multi-stage Docker images, tags them with the commit SHA
+# and branch name, and pushes to GitHub Container Registry (ghcr.io).
+#
+# WHEN: Runs on push to main. Individual services are built only when their
+# source files change (detected via dorny/paths-filter). This avoids
+# rebuilding all images on every commit.
+#
+# NOTE: This workflow uses a matrix strategy for future services. Currently
+# no services are implemented (only shared libraries). The matrix will be
+# populated as domain services are built in subsequent epics. The workflow
+# structure is ready for when services come online.
+#
+# Reinterpretation of US-01-07 AC7 for Java 21 + Maven (original was Node.js).
+# ==============================================================================
+name: Docker Build & Push
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'services/**'
+      - 'libs/**'
+      - 'pom.xml'
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_PREFIX: ${{ github.repository_owner }}/orion
+
+permissions:
+  contents: read
+  packages: write   # Needed to push to ghcr.io
+
+jobs:
+  # ════════════════════════════════════════════════════════════════════
+  # Detect which services have changed to avoid unnecessary builds
+  # ════════════════════════════════════════════════════════════════════
+  detect-changes:
+    name: Detect Changed Services
+    runs-on: ubuntu-latest
+    outputs:
+      services: ${{ steps.filter.outputs.changes }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Detect changed paths
+        id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            # Future services — uncomment as they are implemented:
+            # bff-workstation:
+            #   - 'services/bff-workstation/**'
+            #   - 'libs/**'
+            # marketdata-ingest:
+            #   - 'services/marketdata-ingest/**'
+            #   - 'libs/**'
+            # rfq-service:
+            #   - 'services/rfq-service/**'
+            #   - 'libs/**'
+            # execution-service:
+            #   - 'services/execution-service/**'
+            #   - 'libs/**'
+            # posttrade-service:
+            #   - 'services/posttrade-service/**'
+            #   - 'libs/**'
+            # admin-service:
+            #   - 'services/admin-service/**'
+            #   - 'libs/**'
+            #
+            # Placeholder — remove when first real service is added:
+            _placeholder:
+              - 'services/Dockerfile.template'
+
+  # ════════════════════════════════════════════════════════════════════
+  # Build and push Docker images for changed services
+  # ════════════════════════════════════════════════════════════════════
+  build-and-push:
+    name: Build Docker Image
+    needs: detect-changes
+    if: needs.detect-changes.outputs.services != '[]'
+    runs-on: ubuntu-latest
+    # When real services exist, use: strategy.matrix.service: ${{ fromJson(needs.detect-changes.outputs.services) }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Java 21 + Maven
+        uses: ./.github/actions/setup-java-maven
+
+      # Build the full project first — services depend on shared libs
+      - name: Build project (skip tests — already validated by CI)
+        run: ./mvnw package -DskipTests -B --no-transfer-progress
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # ── Metadata: generate tags ─────────────────────────────────────
+      # Images are tagged with:
+      #   - Commit SHA (immutable, for rollbacks)
+      #   - Branch name (mutable, for "latest from main")
+      #   - "latest" on main branch
+      - name: Extract image metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/placeholder
+          tags: |
+            type=sha,prefix=
+            type=ref,event=branch
+            type=raw,value=latest
+
+      # NOTE: Actual docker build-push-action calls will be added per
+      # service as they are implemented. Each service will have its own
+      # Dockerfile based on services/Dockerfile.template.
+      - name: Build status
+        run: echo "Docker build pipeline ready. No services to build yet."

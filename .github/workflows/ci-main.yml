@@ -1,0 +1,115 @@
+# ==============================================================================
+# Main Branch CI Workflow — runs on every push to main.
+#
+# WHY: After a PR merges, we want a full build with coverage to confirm the
+# integrated result is healthy. This also generates artifacts (coverage reports,
+# test results) that track quality trends over time.
+#
+# WHAT IT DOES:
+#   1. Full Maven build with JaCoCo code coverage (-Pcoverage)
+#   2. Publishes JUnit test results as a GitHub check
+#   3. Uploads JaCoCo HTML coverage reports as build artifacts
+#   4. Runs dependency vulnerability audit
+#
+# Reinterpretation of US-01-07 AC2 for Java 21 + Maven (original was Nx/TS).
+# ==============================================================================
+name: Main CI
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  checks: write
+  security-events: write   # Needed for dependency review
+
+jobs:
+  build-test-coverage:
+    name: Build, Test & Coverage
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Java 21 + Maven
+        uses: ./.github/actions/setup-java-maven
+
+      # ── Full Build + Tests + Coverage ───────────────────────────────
+      # -Pcoverage activates the JaCoCo profile defined in the root POM.
+      # JaCoCo instruments bytecode and generates coverage reports in
+      # each module's target/site/jacoco/ directory.
+      - name: Build and test with coverage
+        run: ./mvnw verify -Pcoverage -B --no-transfer-progress
+
+      # ── Test Report ────────────────────────────────────────────────
+      - name: Publish test results
+        if: always()
+        uses: dorny/test-reporter@v1
+        with:
+          name: 'JUnit Test Results (main)'
+          path: '**/target/surefire-reports/TEST-*.xml'
+          reporter: 'java-junit'
+          fail-on-error: true
+
+      # ── Coverage Artifacts ──────────────────────────────────────────
+      # Upload JaCoCo HTML reports so developers can browse per-module
+      # coverage without running the build locally.
+      - name: Upload JaCoCo coverage reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: jacoco-coverage-reports
+          path: '**/target/site/jacoco/'
+          retention-days: 30
+
+      # ── Upload surefire XML for trend tracking ──────────────────────
+      - name: Upload test result XMLs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: surefire-reports-main
+          path: '**/target/surefire-reports/TEST-*.xml'
+          retention-days: 30
+
+  # ════════════════════════════════════════════════════════════════════
+  # Dependency vulnerability audit — catches known CVEs in dependencies
+  # ════════════════════════════════════════════════════════════════════
+  dependency-audit:
+    name: Dependency Vulnerability Audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Java 21 + Maven
+        uses: ./.github/actions/setup-java-maven
+
+      # Use the GitHub dependency-review-action for PR-level scanning.
+      # For main branch, we run Maven's dependency:analyze to check for
+      # unused/undeclared dependencies and produce a report.
+      - name: Dependency analysis
+        run: ./mvnw dependency:analyze -B --no-transfer-progress || true
+
+      # Trivy scans the filesystem for known vulnerabilities in
+      # Maven dependencies (pom.xml, *.jar in ~/.m2/repository).
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@v0
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+          severity: 'CRITICAL,HIGH'
+
+      - name: Upload Trivy results to GitHub Security
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: 'trivy-results.sarif'

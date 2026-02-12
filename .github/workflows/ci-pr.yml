@@ -1,0 +1,74 @@
+# ==============================================================================
+# PR Validation Workflow — runs on every pull request to main.
+#
+# WHY: Catches build failures, test regressions, and code quality issues BEFORE
+# they reach main. The concurrency group cancels stale runs when a PR is
+# updated, saving CI minutes. Maven dependency caching keeps builds fast.
+#
+# WHAT IT DOES:
+#   1. Compiles all modules (including proto generation)
+#   2. Runs all unit tests (390+ tests across 5 modules)
+#   3. Posts test results as a GitHub check
+#
+# Reinterpretation of US-01-07 AC1 for Java 21 + Maven (original was Nx/TS).
+# ==============================================================================
+name: PR Validation
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
+
+# Cancel in-progress runs for the same PR — no need to finish a stale build
+# when the developer has already pushed new commits.
+concurrency:
+  group: pr-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  checks: write          # Needed for test report annotations
+  pull-requests: write   # Needed for coverage comment
+
+jobs:
+  build-and-test:
+    name: Build & Test
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # Full history for accurate change detection
+
+      - name: Setup Java 21 + Maven
+        uses: ./.github/actions/setup-java-maven
+
+      # ── Build + Test ────────────────────────────────────────────────
+      # Maven verify = compile + test + integration-test + verify.
+      # The -B flag enables batch mode (no interactive prompts).
+      # Proto files are compiled automatically by protobuf-maven-plugin.
+      - name: Build and test all modules
+        run: ./mvnw verify -B --no-transfer-progress
+
+      # ── Test Report ────────────────────────────────────────────────
+      # Publish JUnit XML reports as a GitHub check so developers
+      # can see failing tests directly in the PR Checks tab.
+      - name: Publish test results
+        if: always()
+        uses: dorny/test-reporter@v1
+        with:
+          name: 'JUnit Test Results'
+          path: '**/target/surefire-reports/TEST-*.xml'
+          reporter: 'java-junit'
+          fail-on-error: true
+
+      # ── Upload surefire reports as artifact for debugging ──────────
+      - name: Upload test reports
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: surefire-reports-pr
+          path: '**/target/surefire-reports/'
+          retention-days: 7

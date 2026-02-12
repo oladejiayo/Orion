@@ -1,0 +1,82 @@
+# ==============================================================================
+# Dockerfile Template for Orion Spring Boot Services
+#
+# USAGE: Copy this file to services/<service-name>/Dockerfile and replace
+#        SERVICE_NAME with the actual module name (e.g., rfq-service).
+#
+# WHY MULTI-STAGE:
+#   Stage 1 (build)  — Uses full JDK to compile the project via Maven.
+#   Stage 2 (runtime) — Uses slim JRE image for smallest possible container.
+#   This reduces the final image from ~800MB (JDK) to ~200MB (JRE).
+#
+# SECURITY:
+#   - Runs as non-root user (orion:orion, UID 1001)
+#   - Only the final JAR is copied to the runtime image
+#   - No build tools, source code, or .git in the production image
+#
+# PORTS:
+#   8080 — HTTP (REST / WebSocket / Spring Actuator)
+#   9090 — gRPC
+# ==============================================================================
+
+# ── Stage 1: Build ───────────────────────────────────────────────────────
+FROM eclipse-temurin:21-jdk AS builder
+
+WORKDIR /build
+
+# Copy Maven wrapper and POM files first for dependency layer caching.
+# Docker caches this layer — dependencies only re-download when POM changes.
+COPY mvnw mvnw.cmd ./
+COPY .mvn/ .mvn/
+COPY pom.xml ./
+
+# Copy all module POMs (needed for dependency resolution)
+COPY libs/event-model/pom.xml       libs/event-model/pom.xml
+COPY libs/security/pom.xml          libs/security/pom.xml
+COPY libs/observability/pom.xml     libs/observability/pom.xml
+COPY libs/grpc-api/pom.xml          libs/grpc-api/pom.xml
+COPY build-tools/verification/pom.xml build-tools/verification/pom.xml
+# COPY services/SERVICE_NAME/pom.xml services/SERVICE_NAME/pom.xml
+
+# Download dependencies (cached unless POMs change)
+RUN chmod +x mvnw && ./mvnw dependency:go-offline -B --no-transfer-progress || true
+
+# Copy source code
+COPY libs/ libs/
+# COPY services/SERVICE_NAME/ services/SERVICE_NAME/
+
+# Build the service JAR (skip tests — CI already ran them)
+# Replace SERVICE_NAME with actual module name, e.g.:
+#   ./mvnw package -pl services/rfq-service -am -DskipTests -B
+RUN ./mvnw package -DskipTests -B --no-transfer-progress
+
+# ── Stage 2: Runtime ─────────────────────────────────────────────────────
+FROM eclipse-temurin:21-jre-alpine AS runtime
+
+WORKDIR /app
+
+# Create non-root user for security
+RUN addgroup -g 1001 -S orion && \
+    adduser -S orion -u 1001 -G orion
+
+# Copy the Spring Boot fat JAR from the build stage
+# Replace SERVICE_NAME with actual module path, e.g.:
+#   COPY --from=builder /build/services/rfq-service/target/*.jar app.jar
+COPY --from=builder /build/libs/event-model/target/*.jar app.jar
+
+# Set ownership and switch to non-root user
+RUN chown orion:orion app.jar
+USER orion
+
+# Spring Boot HTTP (REST/WebSocket/Actuator) and gRPC ports
+EXPOSE 8080 9090
+
+# JVM tuning for containers:
+#   -XX:+UseContainerSupport — respects cgroup memory limits
+#   -XX:MaxRAMPercentage=75  — use 75% of container memory for heap
+#   --enable-preview         — Java 21 preview features (virtual threads)
+ENTRYPOINT ["java", \
+    "-XX:+UseContainerSupport", \
+    "-XX:MaxRAMPercentage=75.0", \
+    "--enable-preview", \
+    "-jar", "app.jar"]

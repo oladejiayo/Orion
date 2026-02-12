@@ -88,6 +88,16 @@ flowchart TD
 | **Module** | A sub-project within the Maven monorepo |
 | **TDD** | Test-Driven Development — tests written before code |
 | **CI/CD** | Continuous Integration / Continuous Delivery — automated build + deploy |
+| **GitHub Actions** | GitHub's built-in automation platform — runs workflows (build, test, deploy) on every push or PR |
+| **Workflow** | A YAML file in `.github/workflows/` that defines a series of automated steps (jobs) triggered by events |
+| **Composite Action** | A reusable action that bundles multiple steps into one — like a recipe that multiple workflows can reference |
+| **CODEOWNERS** | A GitHub file that auto-assigns reviewers to PRs based on which files were changed |
+| **Container Registry** | A server that stores Docker images (like ghcr.io) — services pull images from here to run |
+| **Multi-stage Build** | A Docker technique using multiple FROM stages — first stage builds, second stage runs, keeping the final image small |
+| **SARIF** | Static Analysis Results Interchange Format — a standard format for security scan results that GitHub can display |
+| **Trivy** | A security scanner that checks for known vulnerabilities in dependencies |
+| **JaCoCo** | Java Code Coverage — a tool that measures which lines of code are exercised by tests |
+| **Concurrency Group** | A GitHub Actions feature that cancels older runs when a new push arrives to the same PR |
 | **gRPC** | A fast binary protocol for services to communicate, built on HTTP/2 + Protobuf |
 | **Protobuf** | Protocol Buffers — Google's compact, typed data format; `.proto` files compile to Java classes |
 | **protoc** | The Protocol Buffer compiler — reads `.proto` files and generates source code |
@@ -512,6 +522,102 @@ flowchart TD
 
 ---
 
+### ✅ US-01-07: GitHub Actions CI Pipeline
+
+**📅 Implemented:** 2025-07-14  
+**📁 Location:** `.github/workflows/`, `.github/actions/`, `.github/CODEOWNERS`, `services/Dockerfile.template`
+
+#### What Did We Build?
+
+We set up an **automated quality inspector** — every time someone proposes a code change (pull request) or merges code into the main branch, a robot automatically builds the code, runs all tests, checks for security vulnerabilities, and even builds Docker images.
+
+#### Why Do We Need This?
+
+Imagine our restaurant (trading platform) is getting bigger. Multiple chefs (developers) are adding recipes (code) every day. Without an inspector:
+
+- A chef could accidentally break another chef's recipe and nobody would notice until a customer complained
+- Someone could use expired ingredients (vulnerable dependencies) without realizing it
+- Nobody would know if the kitchen (codebase) is actually clean until things go wrong
+
+**GitHub Actions CI** is like hiring a team of inspectors who automatically check every recipe before it goes on the menu:
+
+1. **Does it compile?** → Can the recipe be followed at all?
+2. **Do all tests pass?** → Does the food taste right?
+3. **Are ingredients safe?** → No expired or recalled ingredients (security vulnerabilities)?
+4. **Can we package it?** → Can we put the finished dish in a to-go container (Docker image)?
+
+#### The Parts We Created
+
+| File | What It Is | Simple Explanation |
+|------|-----------|-------------------|
+| `.github/workflows/ci-pr.yml` | PR inspector | Runs on every pull request: builds code, runs tests, posts results as comments |
+| `.github/workflows/ci-main.yml` | Main branch inspector | Runs when code is merged: builds, tests, measures coverage, scans for vulnerabilities |
+| `.github/workflows/proto-validate.yml` | Dictionary checker | Runs when proto files change: makes sure the gRPC "dictionary" still compiles |
+| `.github/workflows/docker-build.yml` | Packaging machine | Builds Docker images and pushes them to a container registry |
+| `.github/actions/setup-java-maven/action.yml` | Shared recipe | A reusable "setup" step that all workflows use — installs Java 21 and caches Maven downloads |
+| `.github/CODEOWNERS` | Reviewer assignment | Automatically assigns the right reviewers when specific files are changed |
+| `services/Dockerfile.template` | Container blueprint | A template for building Docker images of our services — small, secure, optimized for Java |
+
+#### How It Works (The Flow)
+
+```mermaid
+flowchart TD
+    DEV["👩‍💻 Developer pushes code"]
+
+    DEV -->|Pull Request| PR
+    DEV -->|Merge to main| MAIN
+
+    subgraph PR ["🔍 PR Workflow"]
+        PR_SETUP["☕ Setup Java 21\n+ Maven cache"]
+        PR_BUILD["🔨 mvnw verify\n<i>Build + all 420 tests</i>"]
+        PR_REPORT["📋 Test Report\n<i>Annotations on PR diff</i>"]
+        PR_SETUP --> PR_BUILD --> PR_REPORT
+    end
+
+    subgraph MAIN ["✅ Main Workflow"]
+        M_BUILD["🔨 Build + Coverage\nmvnw verify -Pcoverage"]
+        M_COV["📊 JaCoCo Report\n<i>Upload coverage HTML</i>"]
+        M_AUDIT["🔒 Security Scan\n<i>Trivy → GitHub Security</i>"]
+        M_BUILD --> M_COV
+    end
+
+    subgraph DOCKER ["🐳 Docker Build"]
+        D_DETECT["🔍 Which services changed?"]
+        D_BUILD["📦 Build multi-stage image"]
+        D_PUSH["🚀 Push to ghcr.io\n<i>Tagged: sha-abc123</i>"]
+        D_DETECT --> D_BUILD --> D_PUSH
+    end
+
+    style DEV fill:#fff3e0,stroke:#e65100,color:#bf360c
+    style PR_SETUP fill:#e3f2fd,stroke:#1976d2,color:#0d47a1
+    style PR_BUILD fill:#e3f2fd,stroke:#1976d2,color:#0d47a1
+    style PR_REPORT fill:#e8f5e9,stroke:#388e3c,color:#1b5e20
+    style M_BUILD fill:#e3f2fd,stroke:#1976d2,color:#0d47a1
+    style M_COV fill:#e8f5e9,stroke:#388e3c,color:#1b5e20
+    style M_AUDIT fill:#fce4ec,stroke:#c62828,color:#b71c1c
+    style D_DETECT fill:#e3f2fd,stroke:#1976d2,color:#0d47a1
+    style D_BUILD fill:#e3f2fd,stroke:#1976d2,color:#0d47a1
+    style D_PUSH fill:#e8f5e9,stroke:#388e3c,color:#1b5e20
+```
+
+#### Key Concepts
+
+| Concept | Simple Explanation |
+|---------|-------------------|
+| **GitHub Actions** | GitHub's built-in automation. You write YAML files that say "when X happens, do Y." Like setting up automatic timers in your kitchen — when the oven timer goes off, the alarm rings. |
+| **Workflow** | A YAML file that defines a sequence of steps. Each workflow is triggered by an event (push, PR, schedule). Like a recipe card: "Step 1: preheat oven. Step 2: mix ingredients. Step 3: bake." |
+| **Composite Action** | A reusable set of steps that multiple workflows can share. Instead of writing "install Java, cache Maven" in 4 different files, you write it once and reference it everywhere. Like a "prep station" shared by all chefs. |
+| **Concurrency Cancel** | If you push new code to a PR that's already being tested, the old test run gets cancelled. No point checking yesterday's code when today's is ready. Like calling off a taste test because the recipe was just updated. |
+| **CODEOWNERS** | A file that says "if someone changes files in libs/, automatically ask @reviewer to review it." Like a sign saying "all electrical work must be approved by the electrician." |
+| **JaCoCo** | Java Code Coverage — measures which lines of code are actually tested. Reports "85% of your code is covered by tests." Like counting how many dishes on your menu have been taste-tested. |
+| **Trivy** | A security scanner that checks your dependencies for known vulnerabilities. Like a food safety inspector checking if any ingredients have been recalled. |
+| **SARIF** | A standard format for security scan results. GitHub knows how to display SARIF reports in its Security tab. Like a standardized food safety report format. |
+| **ghcr.io** | GitHub Container Registry — a place to store Docker images, built into GitHub. Like a warehouse attached to your kitchen where you store pre-packaged meals. |
+| **Multi-stage Docker Build** | First stage uses a big toolbox (JDK) to build. Second stage uses a tiny toolbox (JRE) to run. The final image is small and secure. Like cooking in a full kitchen but serving from a clean plate. |
+| **Non-root User** | The Docker container runs as a regular user (`orion`), not as administrator. Even if someone breaks in, they can't do much damage. Like giving a waiter a key to the dining room but not the safe. |
+
+---
+
 ## 📖 Glossary
 
 *(see updated glossary below)*
@@ -522,9 +628,9 @@ flowchart TD
 
 | Story | What It Will Add |
 |---|---|
-| US-01-07 | GitHub Actions CI — automated build and test on every push |
-| US-01-08 | Database migrations — Flyway schema versioning for PostgreSQL |
+| US-01-08 | Code quality tools — Checkstyle, SpotBugs, enforcer rules |
+| US-01-09 | Base service template — Spring Boot archetype with shared config |
 
 ---
 
-*Last updated after US-01-06*
+*Last updated after US-01-07*

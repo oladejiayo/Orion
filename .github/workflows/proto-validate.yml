@@ -1,0 +1,62 @@
+# ==============================================================================
+# Proto Validation Workflow — runs when proto files or grpc-api module change.
+#
+# WHY: Protobuf definitions are contracts between services. A bad proto change
+# can break every downstream consumer. This workflow catches issues early:
+#   1. Compiles all .proto files via protoc (protobuf-maven-plugin)
+#   2. Runs all grpc-api module tests (81 tests verifying message construction,
+#      serialization, service descriptors, and enum completeness)
+#   3. Fails the PR if proto compilation or tests fail
+#
+# Reinterpretation of US-01-07 AC5 for Java 21 + Maven (original used Buf CLI).
+# We use Maven's protobuf-maven-plugin instead of buf lint/breaking because
+# our proto files live inside a Maven module and are compiled by protoc directly.
+# ==============================================================================
+name: Proto Validation
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'libs/grpc-api/src/main/proto/**'
+      - 'libs/grpc-api/pom.xml'
+  push:
+    branches: [main]
+    paths:
+      - 'libs/grpc-api/src/main/proto/**'
+      - 'libs/grpc-api/pom.xml'
+
+jobs:
+  validate-protos:
+    name: Compile & Test Proto Definitions
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Java 21 + Maven
+        uses: ./.github/actions/setup-java-maven
+
+      # ── Compile protos ──────────────────────────────────────────────
+      # protobuf-maven-plugin runs protoc + protoc-gen-grpc-java during
+      # the compile phase, generating 132 Java files from 8 proto files.
+      - name: Compile proto definitions
+        run: ./mvnw compile -pl libs/grpc-api -am -B --no-transfer-progress
+
+      # ── Run proto tests ─────────────────────────────────────────────
+      # 81 tests verify message construction, serialization round-trips,
+      # service descriptors (correct RPC counts), and enum completeness.
+      - name: Run proto tests
+        run: ./mvnw verify -pl libs/grpc-api -am -B --no-transfer-progress
+
+      # ── Post test results ───────────────────────────────────────────
+      - name: Publish proto test results
+        if: always()
+        uses: dorny/test-reporter@v1
+        with:
+          name: 'Proto Test Results'
+          path: 'libs/grpc-api/target/surefire-reports/TEST-*.xml'
+          reporter: 'java-junit'
+          fail-on-error: true

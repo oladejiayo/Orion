@@ -48,7 +48,7 @@ Services available after startup:
 ### Build & Test
 
 ```powershell
-# Full build + tests (390 tests)
+# Full build + tests (420 tests)
 .\mvnw.cmd clean verify
 
 # Quick compile (no tests)
@@ -68,29 +68,113 @@ docker compose down -v   # Wipe data
 
 ---
 
-## 3. CI/CD Pipeline (GitHub Actions — Planned)
+## 3. CI/CD Pipeline (GitHub Actions)
 
-The CI pipeline will be configured in US-01-07. Planned workflow:
+The CI pipeline is configured across 4 workflow files in `.github/workflows/`, sharing a reusable composite action for Java/Maven setup.
+
+### Pipeline Architecture
 
 ```mermaid
 flowchart LR
-    PUSH["🔄 Push to main"] --> BUILD["🔨 Build\nmvn compile"]
-    BUILD --> TEST["🧪 Test\nmvn verify"]
-    TEST --> DOCKER["🐳 Docker Build\nmulti-stage"]
-    DOCKER --> PUSH_ECR["📦 Push to ECR"]
-    PUSH_ECR --> DEPLOY["🚀 Deploy to ECS"]
+    subgraph PR ["Pull Request"]
+        PR_BUILD["🔨 Build + Test\nmvnw verify"]
+        PR_REPORT["📋 Test Report\nJUnit annotations"]
+    end
+
+    subgraph MAIN ["Push to main"]
+        M_BUILD["🔨 Build + Coverage\nmvnw verify -Pcoverage"]
+        M_REPORT["📋 Test Report"]
+        M_COV["📊 JaCoCo Upload"]
+        M_AUDIT["🔒 Dependency Audit\nTrivy → SARIF"]
+    end
+
+    subgraph DOCKER ["Docker Build"]
+        D_DETECT["🔍 Change Detection\npaths-filter"]
+        D_BUILD["🐳 Build Images\nmulti-stage"]
+        D_PUSH["📦 Push to ghcr.io"]
+    end
+
+    PR_BUILD --> PR_REPORT
+    M_BUILD --> M_REPORT & M_COV
+    M_AUDIT
+    D_DETECT --> D_BUILD --> D_PUSH
 ```
 
-### Pipeline Stages (Planned)
+### Workflow Files
 
-| Stage | What | Trigger |
-|-------|------|---------|
-| **Build** | `mvn compile` — compile all modules including proto | Every push |
-| **Unit Test** | `mvn test` — run all unit tests | Every push |
-| **Integration Test** | `mvn verify -P it` — Testcontainers-based tests | Every push |
-| **Docker Build** | Multi-stage Dockerfile (JDK build → JRE runtime) | On merge to main |
-| **Push to ECR** | Tag and push container images | On merge to main |
-| **Deploy** | ECS service update with new task definition | Manual or on tag |
+| File | Trigger | What It Does |
+|------|---------|-------------|
+| `ci-pr.yml` | PRs to `main` | Build + test, JUnit annotations, concurrency cancel-in-progress |
+| `ci-main.yml` | Push to `main` | Build + coverage (JaCoCo), Trivy dependency audit → GitHub Security |
+| `proto-validate.yml` | Proto/POM changes | Compile + test `libs/grpc-api` module only |
+| `docker-build.yml` | Push to `main` (service changes) | Multi-stage Docker build, push to ghcr.io with SHA+branch tags |
+
+### Reusable Composite Action
+
+All workflows use `.github/actions/setup-java-maven/action.yml`:
+- Installs Temurin JDK 21 via `actions/setup-java@v4`
+- Enables Maven dependency caching
+- Sets `mvnw` as executable
+
+### Running CI Locally
+
+```powershell
+# Simulate PR workflow
+.\mvnw.cmd verify -B --no-transfer-progress
+
+# Simulate main workflow with coverage
+.\mvnw.cmd verify -Pcoverage -B
+
+# Simulate proto validation
+.\mvnw.cmd verify -pl libs/grpc-api -am
+
+# Check for dependency vulnerabilities (requires Trivy CLI)
+# Install: choco install trivy
+trivy fs --severity HIGH,CRITICAL .
+```
+
+### Test Reporting
+
+- **JUnit XML** → `**/target/surefire-reports/*.xml` → `dorny/test-reporter@v1` creates GitHub check annotations
+- **JaCoCo HTML** → `**/target/site/jacoco/` → uploaded as artifact on main builds
+- **Surefire XMLs** → uploaded as artifact on failure for debugging
+
+### Security Scanning
+
+- **Trivy** scans the filesystem for vulnerable Maven dependencies
+- Results published as SARIF to **GitHub Security → Code scanning alerts**
+- Runs on every push to `main` (not on PRs to keep PR builds fast)
+
+### Docker Image Strategy
+
+Multi-stage builds for minimal image size (template at `services/Dockerfile.template`):
+
+```dockerfile
+# Stage 1: Build
+FROM eclipse-temurin:21-jdk AS builder
+COPY . /workspace
+WORKDIR /workspace
+RUN ./mvnw package -DskipTests -pl services/<name> -am
+
+# Stage 2: Runtime
+FROM eclipse-temurin:21-jre-alpine AS runtime
+RUN addgroup -g 1001 orion && adduser -u 1001 -G orion -D orion
+COPY --from=builder /workspace/services/<name>/target/*.jar /app/app.jar
+USER orion
+EXPOSE 8080 9090
+ENTRYPOINT ["java", "-XX:+UseContainerSupport", "-XX:MaxRAMPercentage=75.0", "-jar", "/app/app.jar"]
+```
+
+Registry: `ghcr.io/<owner>/orion-<service-name>`  
+Tags: `sha-<commit>`, `<branch>`, `latest` (main only)
+
+### CODEOWNERS
+
+`.github/CODEOWNERS` auto-assigns reviewers based on file paths:
+- `*` → global owner
+- `libs/` → library owners
+- `.github/` → DevOps owners
+- `docs/` → documentation owners
 
 ---
 
@@ -186,4 +270,4 @@ Port convention:
 
 ---
 
-*Last updated after US-01-06*
+*Last updated after US-01-07*

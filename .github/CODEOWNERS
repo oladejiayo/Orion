@@ -1,0 +1,38 @@
+# ==============================================================================
+# CODEOWNERS — Defines who is responsible for code review across the repo.
+#
+# WHY: Ensures the right people review changes in their area of expertise.
+# GitHub automatically requests reviews from matching owners when a PR
+# touches files matching these patterns.
+#
+# SYNTAX: Each line is a pattern followed by one or more GitHub usernames
+# or team names. Later rules override earlier ones (more specific wins).
+#
+# See: https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+# ==============================================================================
+
+# ── Global fallback: all changes require review from the platform team ──
+*                           @oladejiayo
+
+# ── Shared libraries: core team reviews ──────────────────────────────────
+libs/event-model/           @oladejiayo
+libs/security/              @oladejiayo
+libs/observability/         @oladejiayo
+libs/grpc-api/              @oladejiayo
+
+# ── Proto definitions: extra scrutiny (contracts affect all services) ─────
+libs/grpc-api/src/main/proto/   @oladejiayo
+
+# ── Infrastructure: DevOps/platform team ─────────────────────────────────
+infra/                      @oladejiayo
+.github/                    @oladejiayo
+
+# ── Documentation ────────────────────────────────────────────────────────
+docs/                       @oladejiayo
+*.md                        @oladejiayo
+
+# ── Build configuration: changes here affect everyone ────────────────────
+pom.xml                     @oladejiayo
+mvnw                        @oladejiayo
+mvnw.cmd                    @oladejiayo
+.mvn/                       @oladejiayo
