@@ -103,6 +103,88 @@ Developer clones repo
 | **CI/CD** | Continuous Integration / Continuous Delivery — automated build + deploy |
 | **gRPC** | A fast protocol for services to communicate |
 | **Protobuf** | Protocol Buffers — a compact data format used by gRPC |
+| **Docker** | A tool that runs apps in isolated containers |
+| **Docker Compose** | Starts multiple Docker containers from one YAML recipe |
+| **Redpanda** | A lightweight Kafka-compatible message broker |
+| **PostgreSQL** | A relational database for permanent data storage |
+| **Redis** | An in-memory cache for super-fast data access |
+| **Health Check** | A periodic ping to verify a service is running |
+| **Named Volume** | Docker storage that persists after containers stop |
+
+---
+
+### ✅ US-01-02: Docker Compose Local Development Environment
+
+**📅 Implemented:** 2025-07-12  
+**📁 Location:** `infra/docker-compose/`
+
+#### What Did We Build?
+
+We set up a **one-command playground** that spins up all the infrastructure our services need (a database, a message bus, and a cache) right on your laptop.
+
+#### Why Do We Need This?
+
+Imagine you're building a restaurant (our trading platform). Before you cook anything, you need a kitchen — stoves, fridges, running water. In software:
+
+- **PostgreSQL** = the fridge (stores data permanently)
+- **Redpanda/Kafka** = the order ticket system (passes messages between cooks)
+- **Redis** = the countertop (fast temporary storage for things you need right now)
+
+Without Docker Compose, every developer would have to install and configure these tools by hand. Docker Compose gives everyone the **exact same kitchen** with one command.
+
+#### The Parts We Created
+
+| File | What It Is | Simple Explanation |
+|------|-----------|-------------------|
+| `docker-compose.yml` | Infrastructure recipe | One file that describes all 6 services and how they connect |
+| `.env.example` | Config template | A list of settings (usernames, passwords) you can customize |
+| `init-scripts/postgres/01-init-databases.sql` | Database setup | Creates separate databases for each microservice on first start |
+| `scripts/start-local-env.sh` | Start script (Linux/Mac) | Starts everything and waits until it's healthy |
+| `scripts/start-local-env.ps1` | Start script (Windows) | Same thing, but for PowerShell |
+| `scripts/reset-local-env.sh` | Reset script (Linux/Mac) | Wipes all data and starts fresh |
+| `scripts/reset-local-env.ps1` | Reset script (Windows) | Same thing, but for PowerShell |
+
+#### How It Works (The Flow)
+
+```
+Developer runs: docker compose up -d
+         │
+         ▼
+┌────────────────────────────────────────────────────┐
+│            Docker creates orion-network             │
+│                                                    │
+│  ┌────────────┐  ┌──────────┐  ┌───────────────┐  │
+│  │ Redpanda   │  │ Postgres │  │    Redis       │  │
+│  │ (messages) │  │ (storage)│  │   (cache)      │  │
+│  │ :19092     │  │  :5432   │  │   :6379        │  │
+│  └─────┬──────┘  └────┬─────┘  └──────┬────────┘  │
+│        │              │               │            │
+│  ┌─────┴──────┐  ┌────┴─────┐  ┌─────┴────────┐   │
+│  │ Console    │  │ pgAdmin  │  │ Redis Cmdr   │   │
+│  │ (view msgs)│  │ (view DB)│  │ (view cache) │   │
+│  │  :8080     │  │  :5050   │  │   :8081      │   │
+│  └────────────┘  └──────────┘  └──────────────┘   │
+└────────────────────────────────────────────────────┘
+         │
+         ▼
+  All services healthy ✅
+  Open http://localhost:8080 to see Kafka UI
+  Open http://localhost:5050 to manage databases
+  Open http://localhost:8081 to inspect cache
+```
+
+#### Key Concepts
+
+| Concept | Simple Explanation |
+|---------|-------------------|
+| **Docker** | A tool that runs apps in isolated boxes called "containers." Each container is like a mini computer with just one program installed. |
+| **Docker Compose** | A tool that starts MULTIPLE Docker containers at once from a recipe file (`docker-compose.yml`). |
+| **Redpanda** | A Kafka-compatible message broker — a post office that passes messages between services. Lighter than Apache Kafka. |
+| **PostgreSQL** | A relational database — a giant spreadsheet that stores data permanently. |
+| **Redis** | An in-memory cache — a super-fast sticky note board. Data is fast to read but can be lost on restart. |
+| **Named Volume** | Docker's way of saving data outside a container. Even if the container is deleted, the data stays. |
+| **Health Check** | A periodic "are you okay?" ping that Docker sends to each service to make sure it's running. |
+| **.env file** | A file with secret settings (passwords, etc.) that is NOT saved in Git — each developer has their own copy. |
 
 ---
 
@@ -110,7 +192,6 @@ Developer clones repo
 
 | Story | What It Will Add |
 |---|---|
-| US-01-02 | Docker Compose local environment — run databases, message brokers, etc. locally |
 | US-01-03 | Shared event model library — common message formats for all services |
 | US-01-04 | Shared security library — authentication and authorization building blocks |
 | US-01-05 | Shared observability library — logging, metrics, and tracing |
@@ -119,4 +200,4 @@ Developer clones repo
 
 ---
 
-*Last updated after US-01-01*
+*Last updated after US-01-02*

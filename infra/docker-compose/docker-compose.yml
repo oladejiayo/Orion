@@ -1,0 +1,171 @@
+# =============================================================================
+# Orion Platform — Docker Compose Local Development Environment
+# =============================================================================
+# Provides Redpanda (Kafka-compatible), PostgreSQL 15, Redis 7, and admin UIs.
+#
+# Usage:
+#   docker compose up -d          Start all services in background
+#   docker compose down            Stop all services (data preserved)
+#   docker compose down -v         Stop all services and DELETE all data
+#   docker compose ps              Show running services
+#   docker compose logs -f <svc>   Follow logs for a specific service
+#
+# See .env.example for configurable environment variables.
+# =============================================================================
+
+services:
+  # ===================
+  # MESSAGE BROKER
+  # ===================
+  redpanda:
+    image: docker.redpanda.com/redpandadata/redpanda:v23.3.5
+    container_name: orion-redpanda
+    command:
+      - redpanda
+      - start
+      - --kafka-addr internal://0.0.0.0:9092,external://0.0.0.0:19092
+      - --advertise-kafka-addr internal://redpanda:9092,external://localhost:19092
+      - --pandaproxy-addr internal://0.0.0.0:8082,external://0.0.0.0:18082
+      - --advertise-pandaproxy-addr internal://redpanda:8082,external://localhost:18082
+      - --schema-registry-addr internal://0.0.0.0:8081,external://0.0.0.0:18081
+      - --advertise-schema-registry-addr internal://redpanda:8081,external://localhost:18081
+      - --rpc-addr redpanda:33145
+      - --advertise-rpc-addr redpanda:33145
+      - --smp 1
+      - --memory 1G
+      - --mode dev-container
+      - --default-log-level=warn
+    ports:
+      - "19092:19092"   # Kafka API (external)
+      - "18081:18081"   # Schema Registry (external)
+      - "18082:18082"   # HTTP Proxy (external)
+    volumes:
+      - redpanda-data:/var/lib/redpanda/data
+    networks:
+      - orion-network
+    healthcheck:
+      test: ["CMD-SHELL", "rpk cluster health | grep -E 'Healthy:.+true' || exit 1"]
+      interval: 15s
+      timeout: 3s
+      retries: 5
+      start_period: 15s
+
+  redpanda-console:
+    image: docker.redpanda.com/redpandadata/console:v2.4.3
+    container_name: orion-redpanda-console
+    entrypoint: /bin/sh
+    command: -c "echo \"$$CONSOLE_CONFIG_FILE\" > /tmp/config.yml; /app/console"
+    environment:
+      CONFIG_FILEPATH: /tmp/config.yml
+      CONSOLE_CONFIG_FILE: |
+        kafka:
+          brokers: ["redpanda:9092"]
+          schemaRegistry:
+            enabled: true
+            urls: ["http://redpanda:8081"]
+        redpanda:
+          adminApi:
+            enabled: true
+            urls: ["http://redpanda:9644"]
+    ports:
+      - "8080:8080"     # Kafka UI
+    networks:
+      - orion-network
+    depends_on:
+      redpanda:
+        condition: service_healthy
+
+  # ===================
+  # DATABASE
+  # ===================
+  postgres:
+    image: postgres:15-alpine
+    container_name: orion-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-orion}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-orion_dev_password}
+      POSTGRES_DB: ${POSTGRES_DB:-orion}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./init-scripts/postgres:/docker-entrypoint-initdb.d
+    networks:
+      - orion-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-orion} -d ${POSTGRES_DB:-orion}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: orion-pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@orion.local}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-admin}
+      PGADMIN_CONFIG_SERVER_MODE: "False"
+    ports:
+      - "5050:80"       # pgAdmin Web UI
+    volumes:
+      - pgadmin-data:/var/lib/pgadmin
+    networks:
+      - orion-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  # ===================
+  # CACHE
+  # ===================
+  redis:
+    image: redis:7-alpine
+    container_name: orion-redis
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - orion-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: orion-redis-commander
+    environment:
+      REDIS_HOSTS: local:redis:6379
+    ports:
+      - "8081:8081"     # Redis UI
+    networks:
+      - orion-network
+    depends_on:
+      redis:
+        condition: service_healthy
+
+# =============================================================================
+# Networks
+# =============================================================================
+networks:
+  orion-network:
+    name: orion-network
+    driver: bridge
+
+# =============================================================================
+# Named Volumes — data persists across `docker compose down` (use -v to wipe)
+# =============================================================================
+volumes:
+  redpanda-data:
+    name: orion-redpanda-data
+  postgres-data:
+    name: orion-postgres-data
+  pgadmin-data:
+    name: orion-pgadmin-data
+  redis-data:
+    name: orion-redis-data

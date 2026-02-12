@@ -49,3 +49,85 @@ The original user story was written with Nx/TypeScript tooling in mind. We reint
 4. **Java 21 virtual threads** — Configured but not activated until service stories.
 5. **Multi-module layout** — services/, libs/ as Maven modules; web/ kept separate (React/Vite, not Maven).
 6. **Verification test** — A build-level integration test in a dedicated module that validates the project structure.
+
+---
+
+## US-01-02: Create Docker Compose Local Development Environment
+
+### Business Context
+Before any microservice can be developed, developers need a **local environment** that mirrors production infrastructure. This means running Kafka (message broker), PostgreSQL (database), and Redis (cache) locally — along with admin UIs for debugging. Without this, developers would need cloud access for every test, which is slow and expensive.
+
+### Why Docker Compose?
+Docker Compose lets us define all infrastructure services in a single YAML file. One command (`docker compose up`) spins up everything. This gives every developer an identical environment regardless of their OS.
+
+### Service Architecture (Local Dev)
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                    Developer Machine                     │
+│                                                         │
+│  ┌─────────────┐  ┌──────────┐  ┌─────────────────┐   │
+│  │  Redpanda    │  │ Postgres │  │     Redis        │   │
+│  │ (Kafka API)  │  │   15     │  │       7          │   │
+│  │  :19092      │  │  :5432   │  │     :6379        │   │
+│  └──────┬───────┘  └────┬─────┘  └────────┬────────┘   │
+│         │               │                  │            │
+│  ┌──────┴───────┐  ┌────┴─────┐  ┌────────┴────────┐   │
+│  │  Redpanda    │  │ pgAdmin  │  │ Redis Commander  │   │
+│  │  Console     │  │  :5050   │  │     :8081        │   │
+│  │   :8080      │  │          │  │                  │   │
+│  └──────────────┘  └──────────┘  └─────────────────┘   │
+│                                                         │
+│              orion-network (Docker bridge)               │
+└─────────────────────────────────────────────────────────┘
+```
+
+### Port Mapping (External)
+
+| Service | External Port | Internal Port | Purpose |
+|---|---|---|---|
+| Redpanda (Kafka) | 19092 | 9092 | Kafka bootstrap for Spring Boot apps |
+| Redpanda (Schema Registry) | 18081 | 8081 | Avro/Protobuf schema management |
+| Redpanda (HTTP Proxy) | 18082 | 8082 | REST Proxy for Kafka |
+| Redpanda Console | 8080 | 8080 | Kafka UI for debugging |
+| PostgreSQL | 5432 | 5432 | Database for all services |
+| pgAdmin | 5050 | 80 | Database admin UI |
+| Redis | 6379 | 6379 | Cache/session store |
+| Redis Commander | 8081 | 8081 | Redis admin UI |
+
+### Spring Boot Connection Properties (for future services)
+
+```yaml
+# application-local.yml (to be used in service stories)
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/orion
+    username: orion
+    password: orion_dev_password
+  data:
+    redis:
+      host: localhost
+      port: 6379
+  kafka:
+    bootstrap-servers: localhost:19092
+```
+
+### Acceptance Criteria Mapping
+
+| AC | Description | Deliverables |
+|---|---|---|
+| AC1 | Core infrastructure services | docker-compose.yml with Redpanda, PostgreSQL, Redis on orion-network |
+| AC2 | Dev tooling containers | Redpanda Console (:8080), pgAdmin (:5050), Redis Commander (:8081) |
+| AC3 | Configuration & secrets | .env.example, .env (gitignored), init-scripts/ |
+| AC4 | Developer experience | docker compose up/down, health checks, depends_on |
+| AC5 | Data persistence | Named volumes, reset script |
+| AC6 | Documentation | Updated README, troubleshooting, port mapping, resource requirements |
+
+### Key Decisions
+1. **Redpanda over Apache Kafka** — Lighter resource footprint for local dev; API-compatible with Kafka. Production will use AWS MSK or Azure Event Hubs.
+2. **PostgreSQL 15 Alpine** — Matches likely production version; Alpine image is smaller.
+3. **Redis 7 with AOF persistence** — `appendonly yes` for durability; `allkeys-lru` eviction for bounded memory.
+4. **Named Docker volumes** — Data survives `docker compose down` but can be wiped with `-v` flag.
+5. **Externalized .env** — Credentials in `.env` (gitignored); `.env.example` committed as template.
+6. **Init scripts** — PostgreSQL init scripts create per-service databases + app user on first run.
+7. **Both bash and PowerShell scripts** — Team uses Windows and macOS/Linux.
