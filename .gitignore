@@ -1,0 +1,70 @@
+# =============================================================================
+# Orion Platform — .gitignore
+# Java 21 + Spring Boot 3.x + Maven + React
+# =============================================================================
+
+# ---------- Java / Maven ----------
+target/
+*.class
+*.jar
+*.war
+*.ear
+*.nar
+hs_err_pid*
+replay_pid*
+
+# ---------- Maven Wrapper ----------
+# The wrapper JAR is committed; ignore downloaded JARs
+!.mvn/wrapper/maven-wrapper.jar
+.mvn/wrapper/maven-wrapper.jar.bak
+
+# ---------- IDE — IntelliJ IDEA ----------
+.idea/
+*.iml
+*.iws
+*.ipr
+out/
+
+# ---------- IDE — VS Code ----------
+.vscode/
+*.code-workspace
+
+# ---------- IDE — Eclipse ----------
+.classpath
+.project
+.settings/
+bin/
+
+# ---------- OS ----------
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ---------- Node.js / React (web/) ----------
+node_modules/
+dist/
+build/
+.env
+.env.local
+.env.*.local
+*.tsbuildinfo
+
+# ---------- Logs ----------
+*.log
+logs/
+spring.log
+
+# ---------- Docker ----------
+docker-compose.override.yml
+
+# ---------- Terraform ----------
+.terraform/
+*.tfstate
+*.tfstate.backup
+*.tfvars
+!*.tfvars.example
+
+# ---------- Coverage / Reports ----------
+coverage/
+*.exec
+jacoco.exec

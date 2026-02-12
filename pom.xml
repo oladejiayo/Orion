@@ -1,0 +1,288 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <!-- ================================================================== -->
+    <!-- Spring Boot Parent — provides dependency management (BOM) and      -->
+    <!-- sensible plugin defaults for all child modules.                    -->
+    <!-- ================================================================== -->
+    <parent>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-parent</artifactId>
+        <version>3.4.3</version>
+        <relativePath/> <!-- lookup parent from repository -->
+    </parent>
+
+    <!-- ================================================================== -->
+    <!-- Project Coordinates                                                -->
+    <!-- ================================================================== -->
+    <groupId>com.orion</groupId>
+    <artifactId>orion-platform</artifactId>
+    <version>0.0.1-SNAPSHOT</version>
+    <packaging>pom</packaging>
+
+    <name>Orion Liquidity &amp; Data Platform</name>
+    <description>
+        Cloud-native, event-driven platform for real-time multi-asset market data,
+        electronic execution workflows (RFQ + CLOB), trade capture, post-trade automation,
+        and market analytics — built with Java 21 + Spring Boot 3.x.
+    </description>
+
+    <!-- ================================================================== -->
+    <!-- Global Properties                                                  -->
+    <!-- ================================================================== -->
+    <properties>
+        <!-- Java -->
+        <java.version>21</java.version>
+        <maven.compiler.source>${java.version}</maven.compiler.source>
+        <maven.compiler.target>${java.version}</maven.compiler.target>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+
+        <!-- Surefire argLine — JaCoCo will override this when active -->
+        <argLine/>
+
+        <!-- Spring Boot (inherited from parent, pinned here for visibility) -->
+        <spring-boot.version>3.4.3</spring-boot.version>
+
+        <!-- gRPC / Protobuf -->
+        <grpc.version>1.71.0</grpc.version>
+        <protobuf.version>4.29.3</protobuf.version>
+        <grpc-spring-boot-starter.version>3.4.3</grpc-spring-boot-starter.version>
+
+        <!-- Testing -->
+        <testcontainers.version>1.20.4</testcontainers.version>
+        <archunit.version>1.3.0</archunit.version>
+
+        <!-- Observability -->
+        <micrometer.version>1.14.4</micrometer.version>
+        <opentelemetry.version>1.46.0</opentelemetry.version>
+
+        <!-- Plugins -->
+        <maven-compiler-plugin.version>3.13.0</maven-compiler-plugin.version>
+        <maven-surefire-plugin.version>3.5.2</maven-surefire-plugin.version>
+        <maven-failsafe-plugin.version>3.5.2</maven-failsafe-plugin.version>
+        <jacoco-maven-plugin.version>0.8.12</jacoco-maven-plugin.version>
+        <spotless-maven-plugin.version>2.44.0</spotless-maven-plugin.version>
+    </properties>
+
+    <!-- ================================================================== -->
+    <!-- Module Declarations                                                -->
+    <!--                                                                    -->
+    <!-- Maven reactor will build these in dependency order.                -->
+    <!-- Modules are added as their user stories are implemented.           -->
+    <!-- ================================================================== -->
+    <modules>
+        <!-- Shared libraries (built first — no Spring Boot dependencies initially) -->
+        <!-- <module>libs/common</module> -->
+        <!-- <module>libs/event-model</module> -->
+        <!-- <module>libs/security</module> -->
+        <!-- <module>libs/observability</module> -->
+
+        <!-- Microservices (depend on libs) -->
+        <!-- <module>services/bff-workstation</module> -->
+        <!-- <module>services/bff-admin</module> -->
+        <!-- <module>services/marketdata-ingest</module> -->
+        <!-- <module>services/marketdata-projection</module> -->
+        <!-- <module>services/rfq-service</module> -->
+        <!-- <module>services/lp-bot-service</module> -->
+        <!-- <module>services/execution-service</module> -->
+        <!-- <module>services/posttrade-service</module> -->
+        <!-- <module>services/analytics-service</module> -->
+        <!-- <module>services/admin-service</module> -->
+
+        <!-- Build verification (structural tests) -->
+        <module>build-tools/verification</module>
+    </modules>
+
+    <!-- ================================================================== -->
+    <!-- Dependency Management — centralise versions for all child modules  -->
+    <!-- Spring Boot BOM is inherited from parent; extras go here.          -->
+    <!-- ================================================================== -->
+    <dependencyManagement>
+        <dependencies>
+            <!-- Testcontainers BOM -->
+            <dependency>
+                <groupId>org.testcontainers</groupId>
+                <artifactId>testcontainers-bom</artifactId>
+                <version>${testcontainers.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+
+            <!-- gRPC BOM -->
+            <dependency>
+                <groupId>io.grpc</groupId>
+                <artifactId>grpc-bom</artifactId>
+                <version>${grpc.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+
+            <!-- ArchUnit (architecture tests) -->
+            <dependency>
+                <groupId>com.tngtech.archunit</groupId>
+                <artifactId>archunit-junit5</artifactId>
+                <version>${archunit.version}</version>
+                <scope>test</scope>
+            </dependency>
+
+            <!-- Orion shared libraries (will be uncommented as implemented) -->
+            <!--
+            <dependency>
+                <groupId>com.orion</groupId>
+                <artifactId>orion-common</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.orion</groupId>
+                <artifactId>orion-event-model</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.orion</groupId>
+                <artifactId>orion-security</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.orion</groupId>
+                <artifactId>orion-observability</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            -->
+        </dependencies>
+    </dependencyManagement>
+
+    <!-- ================================================================== -->
+    <!-- Build Configuration — shared across all child modules              -->
+    <!-- ================================================================== -->
+    <build>
+        <pluginManagement>
+            <plugins>
+                <!-- Java Compiler -->
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-compiler-plugin</artifactId>
+                    <version>${maven-compiler-plugin.version}</version>
+                    <configuration>
+                        <source>${java.version}</source>
+                        <target>${java.version}</target>
+                        <parameters>true</parameters>
+                        <compilerArgs>
+                            <arg>-Xlint:all</arg>
+                        </compilerArgs>
+                    </configuration>
+                </plugin>
+
+                <!-- Unit tests (Surefire) -->
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-surefire-plugin</artifactId>
+                    <version>${maven-surefire-plugin.version}</version>
+                    <configuration>
+                        <argLine>@{argLine} --enable-preview</argLine>
+                    </configuration>
+                </plugin>
+
+                <!-- Integration tests (Failsafe) -->
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-failsafe-plugin</artifactId>
+                    <version>${maven-failsafe-plugin.version}</version>
+                    <configuration>
+                        <argLine>@{argLine} --enable-preview</argLine>
+                    </configuration>
+                    <executions>
+                        <execution>
+                            <goals>
+                                <goal>integration-test</goal>
+                                <goal>verify</goal>
+                            </goals>
+                        </execution>
+                    </executions>
+                </plugin>
+
+                <!-- Code coverage (JaCoCo) -->
+                <plugin>
+                    <groupId>org.jacoco</groupId>
+                    <artifactId>jacoco-maven-plugin</artifactId>
+                    <version>${jacoco-maven-plugin.version}</version>
+                    <executions>
+                        <execution>
+                            <id>prepare-agent</id>
+                            <goals>
+                                <goal>prepare-agent</goal>
+                            </goals>
+                        </execution>
+                        <execution>
+                            <id>report</id>
+                            <phase>verify</phase>
+                            <goals>
+                                <goal>report</goal>
+                            </goals>
+                        </execution>
+                    </executions>
+                </plugin>
+
+                <!-- Spring Boot packaging -->
+                <plugin>
+                    <groupId>org.springframework.boot</groupId>
+                    <artifactId>spring-boot-maven-plugin</artifactId>
+                    <configuration>
+                        <excludes>
+                            <exclude>
+                                <groupId>org.projectlombok</groupId>
+                                <artifactId>lombok</artifactId>
+                            </exclude>
+                        </excludes>
+                    </configuration>
+                </plugin>
+            </plugins>
+        </pluginManagement>
+
+        <!-- Plugins applied to ALL modules -->
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+            </plugin>
+        </plugins>
+    </build>
+
+    <!-- ================================================================== -->
+    <!-- Profiles                                                           -->
+    <!-- ================================================================== -->
+    <profiles>
+        <!-- Coverage profile: mvn verify -Pcoverage -->
+        <profile>
+            <id>coverage</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.jacoco</groupId>
+                        <artifactId>jacoco-maven-plugin</artifactId>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+
+        <!-- Integration test profile: mvn verify -Pit -->
+        <profile>
+            <id>it</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-failsafe-plugin</artifactId>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
+</project>
