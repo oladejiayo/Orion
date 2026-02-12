@@ -5,6 +5,7 @@
 **Status:** Implementation-Ready PRD (Exhaustive)  
 **Primary Audience:** Engineers, Architects, Product/Design, DevOps/SRE  
 **Deployment Target:** AWS (ECS/Fargate), Event-Driven / Message Bus (Kafka/MSK)  
+**Technology Stack:** Java 21 + Spring Boot 3.x (backend microservices), React + TypeScript (frontend)  
 **Architecture Pattern Highlights:** Event-Driven + CQRS + Outbox + BFF (Backend-for-Frontend)
 
 ---
@@ -34,11 +35,13 @@ Orion is a portfolio-grade reference platform that models how modern institution
 
 ### 1.3 Why This Product Exists (Portfolio Value)
 Orion demonstrates end-to-end competence in:
+- **Java 21 + Spring Boot 3.x** microservices with Clean Architecture
 - Event-driven systems and messaging patterns (Kafka)
-- Low-latency distribution and fan-out (WebSockets, topic partitioning)
+- Low-latency distribution and fan-out (WebSockets, gRPC streaming, topic partitioning)
 - Trading lifecycle state machines (RFQ → Quote → Accept → Trade)
 - Microservices, CQRS, idempotency, outbox, DLQ, replay
 - AWS deployment maturity (ECS/Fargate, MSK, RDS, Redis, IAM, networking)
+- **React + TypeScript** single-page application with real-time data streaming
 - Observability (metrics, tracing, logs, SLOs) and operational rigor
 
 ---
@@ -301,6 +304,57 @@ flowchart TB
 | RFQ Quote Watch | Server Streaming | BFF watches for incoming quotes on an RFQ |
 | LP Quote Flow | Bidirectional | LP bots send quotes, receive RFQ notifications |
 | Trade Blotter Live | Server Streaming | Real-time trade updates pushed to BFF |
+
+### 7.6 Technology Stack (Preferred)
+
+> **This is the canonical technology stack for Orion. All backend services, shared libraries, and tooling MUST use this stack unless an explicit exception is documented in an ADR.**
+
+#### 7.6.1 Backend (Microservices)
+
+| Component | Technology | Version | Notes |
+|-----------|-----------|---------|-------|
+| **Language** | Java | 21 (LTS) | Virtual threads (Project Loom) for high-throughput I/O |
+| **Framework** | Spring Boot | 3.x | Auto-configuration, actuator, security, web |
+| **Build Tool** | Maven | 3.9+ | Multi-module project with parent POM |
+| **gRPC** | grpc-java + protobuf-java | Latest stable | Service-to-service communication |
+| **Kafka Client** | Spring Kafka | Matches Spring Boot BOM | Event bus producer/consumer |
+| **Database Access** | Spring Data JPA + Hibernate | Matches Spring Boot BOM | PostgreSQL dialect |
+| **Caching** | Spring Data Redis / Lettuce | Matches Spring Boot BOM | Redis sessions and snapshots |
+| **Testing** | JUnit 5 + Mockito + Testcontainers | Latest stable | Unit, integration, contract tests |
+| **Observability** | Micrometer + OpenTelemetry Java Agent | Latest stable | Metrics, traces, logs |
+| **API Docs** | SpringDoc OpenAPI | 2.x | Auto-generated Swagger for BFF REST endpoints |
+
+#### 7.6.2 Frontend (Web Workstation)
+
+| Component | Technology | Version | Notes |
+|-----------|-----------|---------|-------|
+| **Language** | TypeScript | 5.x | Strict mode enabled |
+| **Framework** | React | 18+ | Single-page application |
+| **Build Tool** | Vite | Latest | Fast dev server and build |
+| **State Management** | Zustand or Redux Toolkit | Latest | Global state for market data, blotters |
+| **WebSocket** | Native WebSocket / SockJS | — | Real-time streaming from BFF |
+| **Testing** | Vitest + React Testing Library | Latest | Component and integration tests |
+
+#### 7.6.3 Infrastructure & Shared
+
+| Component | Technology | Notes |
+|-----------|-----------|-------|
+| **Container Runtime** | Docker | Multi-stage builds for Java (JRE slim) and React (nginx) |
+| **Local Dev Orchestration** | Docker Compose | Kafka (Redpanda), PostgreSQL, Redis |
+| **IaC** | Terraform | AWS provisioning |
+| **CI/CD** | GitHub Actions | Build, test, deploy pipelines |
+| **Schema Definition** | Protocol Buffers (proto3) | gRPC contracts + Java/JS code generation |
+| **Event Schemas** | JSON Schema (repo-based) | Event envelope validation |
+| **Monorepo Structure** | Maven multi-module | Parent POM with services/, libs/, web/ modules |
+
+#### 7.6.4 Why Java + Spring Boot?
+
+1. **JVM maturity for financial systems** — proven track record in institutional trading platforms for low-latency, high-throughput workloads.
+2. **Virtual threads (Java 21)** — eliminates reactive complexity while achieving high concurrency for I/O-bound Kafka consumers and gRPC servers.
+3. **Spring ecosystem breadth** — Spring Boot, Spring Security, Spring Kafka, Spring Data JPA, Spring gRPC all work together with minimal glue code.
+4. **Testcontainers** — first-class Java support for integration testing with real Kafka, PostgreSQL, and Redis containers.
+5. **Strong typing + compile-time safety** — catches contract drift between services at build time via protobuf code generation.
+6. **Operational maturity** — JVM tooling (JFR, async-profiler, GC tuning) is battle-tested for production observability.
 
 ---
 
@@ -1673,6 +1727,8 @@ Store in repo:
 ## 18. Repo Structure (Recommended)
 
 ```
+pom.xml                          # Parent POM (Maven multi-module)
+
 /docs
   /prd
     PRD.md
@@ -1683,8 +1739,8 @@ Store in repo:
     incident-response.md
     replay-procedure.md
 
-/services
-  /bff-workstation
+/services                        # Java Spring Boot microservices (each is a Maven module)
+  /bff-workstation               # src/main/java, src/test/java, pom.xml
   /bff-admin
   /marketdata-ingest
   /marketdata-projection
@@ -1696,12 +1752,21 @@ Store in repo:
   /admin-service
   /notification-service (optional)
 
-/libs
-  /event-model (envelope, serialization, schema validation)
-  /security (auth helpers, tenant enforcement)
-  /observability (otel, logging)
+/libs                            # Shared Java libraries (Maven modules)
+  /event-model                   # Canonical event envelope, serialization, validation
+  /security                      # Auth helpers, tenant enforcement, JWT utilities
+  /observability                 # OTel, logging, metrics helpers
+  /common                        # Shared DTOs, exceptions, constants
 
-/schemas
+/proto                           # Protocol Buffer definitions (gRPC contracts)
+  /v1
+    common.proto
+    marketdata.proto
+    rfq.proto
+    order.proto
+    trade.proto
+
+/schemas                         # JSON Schemas for Kafka event envelopes
   /v1
     marketdata.tick.json
     rfq.created.json
@@ -1710,12 +1775,16 @@ Store in repo:
     trade.executed.json
     ...
 
+/web                             # React + TypeScript frontend (Vite)
+  /workstation                   # Main trading workstation SPA
+  /admin-console                 # Admin UI
+
 /infra
   /terraform
   /docker-compose
 
-/benchmarks
-/scripts
+/benchmarks                      # JMH microbenchmarks + load test scripts
+/scripts                         # Dev utility scripts
 ```
 
 ---
