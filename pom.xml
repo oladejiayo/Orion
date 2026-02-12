@@ -77,7 +77,7 @@
     <modules>
         <!-- Shared libraries (built first — no Spring Boot dependencies initially) -->
         <!-- <module>libs/common</module> -->
-        <!-- <module>libs/event-model</module> -->
+        <module>libs/event-model</module>
         <!-- <module>libs/security</module> -->
         <!-- <module>libs/observability</module> -->
 
@@ -129,18 +129,20 @@
                 <scope>test</scope>
             </dependency>
 
-            <!-- Orion shared libraries (will be uncommented as implemented) -->
+            <!-- Orion shared libraries (uncommented as implemented) -->
             <!--
             <dependency>
                 <groupId>com.orion</groupId>
                 <artifactId>orion-common</artifactId>
                 <version>${project.version}</version>
             </dependency>
+            -->
             <dependency>
                 <groupId>com.orion</groupId>
                 <artifactId>orion-event-model</artifactId>
                 <version>${project.version}</version>
             </dependency>
+            <!--
             <dependency>
                 <groupId>com.orion</groupId>
                 <artifactId>orion-security</artifactId>

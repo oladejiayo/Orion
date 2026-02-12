@@ -131,3 +131,52 @@ spring:
 5. **Externalized .env** — Credentials in `.env` (gitignored); `.env.example` committed as template.
 6. **Init scripts** — PostgreSQL init scripts create per-service databases + app user on first run.
 7. **Both bash and PowerShell scripts** — Team uses Windows and macOS/Linux.
+
+---
+
+## US-01-03: Setup Shared Event Model Library
+
+### Business Context
+Orion is an **event-driven** platform. Every action — a trade executing, a quote arriving, a risk limit being breached — produces an **event** that is published to Kafka and consumed by other services. For this to work, every service must speak the same language: a canonical **event envelope** that wraps every domain event with standard metadata (IDs, timestamps, correlation, tenant isolation).
+
+This library (`orion-event-model`) is the first *real* Java code in the monorepo. It's a **pure domain library** with zero Spring dependencies — any Java project can use it.
+
+### Reinterpretation of US-01-03
+The original user story was written with TypeScript/Nx in mind. We reinterpret for Java 21 + Maven:
+
+| Original (TypeScript) | Reinterpreted (Java 21) |
+|---|---|
+| `EventEnvelope<T>` interface | Java record `EventEnvelope<T>` (immutable, generic) |
+| `EventEntity` interface | Java record `EventEntity` |
+| `createEvent<T>()` factory function | `EventFactory.create()` static method |
+| `createChildEvent<T>()` | `EventFactory.createChild()` static method |
+| `createEventId()` / `createCorrelationId()` | `java.util.UUID.randomUUID()` |
+| `serializeEvent()` / `deserializeEvent()` | `EventSerializer` with Jackson ObjectMapper |
+| JSON Schema validation | `EventValidator.validate()` with manual field checks |
+| `EventTypes` const object | `EventType` Java enum |
+| `isKnownEventType()` type guard | `EventType.fromString()` returning `Optional` |
+| `@orion/event-model` import | Maven `<dependency>com.orion:orion-event-model</dependency>` |
+| `Instant` as ISO 8601 string | `java.time.Instant` (Jackson JavaTimeModule serializes to ISO 8601) |
+
+### Package Structure
+
+```
+com.orion.eventmodel/
+├── EventEnvelope.java        — Record: canonical event wrapper with generic payload
+├── EventEntity.java          — Record: entity tracking (type, id, sequence)
+├── EventType.java            — Enum: all known Orion event types
+├── EntityType.java           — Enum: all known entity types
+├── EventFactory.java         — Static factory methods for creating events
+├── EventSerializer.java      — Jackson-based JSON serialization/deserialization
+├── ValidationResult.java     — Record: validation outcome with error list
+└── EventValidator.java       — Validates envelope fields
+```
+
+### Design Decisions
+1. **Java records** — `EventEnvelope<T>` and `EventEntity` are records: immutable, compact, auto-generated equals/hashCode/toString. Perfect for event data that should never be mutated after creation.
+2. **No Spring dependency** — This is a pure domain library. Only Jackson for JSON. Any Java project can use it, not just Spring Boot apps.
+3. **`Instant` for timestamps** — Type-safe, nanosecond precision, ISO 8601 serialization via Jackson's `JavaTimeModule`.
+4. **Enums for event/entity types** — Compile-time safety, exhaustive switch statements, easy to extend.
+5. **Jackson for serialization** — Spring Boot's default JSON library. The `JavaTimeModule` handles `Instant` ↔ ISO 8601. Generic `T` payload is handled via `TypeReference` or `JavaType`.
+6. **Manual validation over Bean Validation** — No annotation processing dependency. Simple, fast, returns a `ValidationResult` record with all errors at once.
+7. **Builder pattern** — While records are immutable, we provide a fluent builder via `EventFactory` for ergonomic event creation with sensible defaults.

@@ -188,11 +188,101 @@ Developer runs: docker compose up -d
 
 ---
 
+### ✅ US-01-03: Setup Shared Event Model Library
+
+**📅 Implemented:** 2025-07-12  
+**📁 Location:** `libs/event-model/`
+
+#### What Did We Build?
+
+We created a **shared vocabulary** for all services to communicate — like agreeing that every letter sent through the post office must use the same envelope format.
+
+#### Why Do We Need This?
+
+Imagine 10 different cooks in our restaurant kitchen (microservices). Each cook needs to pass notes to the others: "Order received!", "Food is ready!", "Table 5 cancelled!". If every cook invents their own note format, chaos ensues.
+
+The **Event Model** is a set of rules that says: "Every note MUST have these fields: who wrote it, when, what kind of note it is, and the actual message." Now every cook speaks the same language.
+
+In software terms, every event flowing through our Redpanda message bus uses the same **EventEnvelope** format — a standard wrapper around every message.
+
+#### The Parts We Created
+
+| File | What It Is | Simple Explanation |
+|------|-----------|-------------------|
+| `EventEnvelope.java` | The standard envelope | Every event is wrapped in this — like a postal envelope with sender, date, tracking number |
+| `EventEntity.java` | Entity tracking | Identifies WHAT thing the event is about (e.g., "Trade #123, version 1") |
+| `EventType.java` | Event type registry | A list of all 30 known event types (TradeExecuted, RFQCreated, etc.) |
+| `EntityType.java` | Entity type list | A list of all 10 entity types (Trade, RFQ, Order, Quote, etc.) |
+| `EventFactory.java` | Event creator | Helper methods to create events with auto-generated IDs and timestamps |
+| `EventSerializer.java` | JSON converter | Converts events to/from JSON text (for sending over the network) |
+| `EventValidator.java` | Event checker | Checks that an event has all required fields before sending it |
+| `ValidationResult.java` | Check result | The result of validation — either "all good" or a list of problems |
+
+#### How It Works (The Flow)
+
+```
+Service wants to announce: "Trade #123 executed!"
+         │
+         ▼
+┌──────────────────────────────────────────────┐
+│         EventFactory.create(...)             │
+│  Auto-generates:                             │
+│    • UUID event ID                           │
+│    • Current timestamp (ISO 8601)            │
+│    • Correlation ID (for tracing)            │
+│    • Version = 1                             │
+└─────────────────┬────────────────────────────┘
+                  │
+                  ▼
+┌──────────────────────────────────────────────┐
+│       EventEnvelope<TradePayload>            │
+│  ┌─────────────────────────────────────┐     │
+│  │  eventId:       "abc-123-def"       │     │
+│  │  eventType:     "TradeExecuted"     │     │
+│  │  eventVersion:  1                   │     │
+│  │  occurredAt:    "2025-07-12T..."    │     │
+│  │  producer:      "execution-service" │     │
+│  │  tenantId:      "tenant-001"        │     │
+│  │  correlationId: "xyz-789"           │     │
+│  │  entity: Trade / trade-123 / seq 1  │     │
+│  │  payload:  { price: 99.5, qty: 100} │     │
+│  └─────────────────────────────────────┘     │
+└─────────────────┬────────────────────────────┘
+                  │
+                  ▼
+┌──────────────────────────────────────────────┐
+│     EventValidator.validate(envelope)        │
+│  Checks all required fields are present      │
+│  → ValidationResult: valid ✅                │
+└─────────────────┬────────────────────────────┘
+                  │
+                  ▼
+┌──────────────────────────────────────────────┐
+│     EventSerializer.serialize(envelope)      │
+│  → JSON string sent to Redpanda              │
+└──────────────────────────────────────────────┘
+```
+
+#### Key Concepts
+
+| Concept | Simple Explanation |
+|---------|-------------------|
+| **Event Envelope** | A standard wrapper around every message. Like a postal envelope — it has "from," "to," "date," and the letter inside. |
+| **Java Record** | A special Java class that's **immutable** (can't be changed after creation). Perfect for events — once something happened, you can't un-happen it. |
+| **Generic Type `<T>`** | The `EventEnvelope<T>` can hold ANY payload type. `T` is a placeholder — it could be a trade, a quote, an order, etc. Like an envelope that fits any letter. |
+| **UUID** | "Universally Unique Identifier" — a random string like `550e8400-e29b-41d4-a716-446655440000`. So unique that two computers generating UUIDs at the same time will never collide. |
+| **Correlation ID** | A tracking number that follows a business flow across multiple events. If an RFQ leads to a quote, which leads to a trade — they all share the same correlation ID so you can trace the chain. |
+| **Causation ID** | Points to the event that *caused* this one. The trade was *caused by* the quote acceptance. |
+| **ISO 8601** | A standard date format: `2025-07-12T15:30:00Z`. The "Z" means UTC. Used worldwide so there's no timezone confusion. |
+| **Jackson** | A Java library that converts objects to/from JSON. Like a translator between Java objects and the text format used on the network. |
+| **Immutability** | Once an event is created, it can never be modified. This is critical for audit trails — you can always prove exactly what happened and when. |
+
+---
+
 ## 🔮 What's Coming Next
 
 | Story | What It Will Add |
 |---|---|
-| US-01-03 | Shared event model library — common message formats for all services |
 | US-01-04 | Shared security library — authentication and authorization building blocks |
 | US-01-05 | Shared observability library — logging, metrics, and tracing |
 | US-01-06 | Protobuf definitions — gRPC service contracts |
@@ -200,4 +290,4 @@ Developer runs: docker compose up -d
 
 ---
 
-*Last updated after US-01-02*
+*Last updated after US-01-03*
