@@ -1,0 +1,32 @@
+# =============================================================================
+# Orion Database — Test Profile Configuration
+# =============================================================================
+# WHY: Tests should not connect to real databases. Flyway is completely disabled
+# in the test profile. Integration tests that need a real database use
+# Testcontainers (US-01-11) which provides ephemeral PostgreSQL instances.
+# =============================================================================
+
+orion:
+  flyway:
+    orion:
+      url: jdbc:postgresql://localhost:5432/orion_test
+      username: orion
+      password: orion_dev_password
+      locations: classpath:db/migration/orion
+      enabled: false
+    rfq:
+      url: jdbc:postgresql://localhost:5432/orion_rfq_test
+      username: orion
+      password: orion_dev_password
+      locations: classpath:db/migration/rfq
+      enabled: false
+    marketdata:
+      url: jdbc:postgresql://localhost:5432/orion_marketdata_test
+      username: orion
+      password: orion_dev_password
+      locations: classpath:db/migration/marketdata
+      enabled: false
+
+spring:
+  flyway:
+    enabled: false

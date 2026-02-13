@@ -140,7 +140,7 @@ Update the `Status` column as work progresses. If you prefer, you can also add a
 | US-02-05 | epic-02-authentication | US-02-05-user-profile-endpoint.md | Todo |
 | US-01-12 | epic-01-project-scaffolding | US-01-12-environment-configuration.md | Todo |
 | US-01-11 | epic-01-project-scaffolding | US-01-11-development-documentation.md | Todo |
-| US-01-10 | epic-01-project-scaffolding | US-01-10-database-migrations.md | Todo |
+| US-01-10 | epic-01-project-scaffolding | US-01-10-database-migrations.md | Done |
 | US-01-09 | epic-01-project-scaffolding | US-01-09-base-service-template.md | Done |
 | US-01-08 | epic-01-project-scaffolding | US-01-08-code-quality-tools.md | Done |
 | US-01-07 | epic-01-project-scaffolding | US-01-07-github-actions-ci.md | Done |

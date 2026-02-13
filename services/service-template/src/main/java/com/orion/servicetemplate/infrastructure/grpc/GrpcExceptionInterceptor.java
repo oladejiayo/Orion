@@ -42,8 +42,7 @@ public class GrpcExceptionInterceptor implements ServerInterceptor {
                     public void close(Status status, Metadata trailers) {
                         // WHY: gRPC wraps unhandled exceptions as UNKNOWN.
                         // We unwrap and map to more specific status codes.
-                        if (status.getCode() == Status.Code.UNKNOWN
-                                && status.getCause() != null) {
+                        if (status.getCode() == Status.Code.UNKNOWN && status.getCause() != null) {
                             status = mapException(status.getCause());
                         }
                         super.close(status, trailers);

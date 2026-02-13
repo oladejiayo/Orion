@@ -1,0 +1,211 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0                              https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <!-- ================================================================== -->
+  <!-- Parent — inherits dependency management, plugin config, Java 21    -->
+  <!-- ================================================================== -->
+  <parent>
+    <groupId>com.orion</groupId>
+    <artifactId>orion-platform</artifactId>
+    <version>0.0.1-SNAPSHOT</version>
+    <relativePath>../../pom.xml</relativePath>
+  </parent>
+
+  <!-- ================================================================== -->
+  <!-- Module Coordinates                                                 -->
+  <!-- ================================================================== -->
+  <artifactId>orion-database</artifactId>
+  <name>Orion :: Libs :: Database</name>
+  <description>Database migration framework using Flyway for the Orion platform.
+        Provides versioned SQL migrations, multi-database support (orion, rfq, marketdata),
+        seed data for development, and Spring Boot auto-configuration.
+        Reinterpretation of US-01-10 from node-pg-migrate (TypeScript) to Flyway (Java).</description>
+
+  <!-- ================================================================== -->
+  <!-- Properties                                                         -->
+  <!-- ================================================================== -->
+  <properties>
+    <!-- Flyway version — Spring Boot 3.4.3 manages this via BOM, but we
+         pin explicitly for the Maven plugin which is outside the BOM. -->
+    <flyway.version>10.22.0</flyway.version>
+  </properties>
+
+  <!-- ================================================================== -->
+  <!-- Dependencies                                                       -->
+  <!-- ================================================================== -->
+  <dependencies>
+    <!-- ── Flyway Core — the migration engine ── -->
+    <!-- WHY: Replaces node-pg-migrate from the TypeScript story.         -->
+    <!-- Flyway is the de-facto standard for Java database migrations.    -->
+    <dependency>
+      <groupId>org.flywaydb</groupId>
+      <artifactId>flyway-core</artifactId>
+    </dependency>
+
+    <!-- ── Flyway PostgreSQL — required since Flyway 10 for PG support ── -->
+    <dependency>
+      <groupId>org.flywaydb</groupId>
+      <artifactId>flyway-database-postgresql</artifactId>
+    </dependency>
+
+    <!-- ── Spring Boot Autoconfigure — for @ConfigurationProperties ── -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-autoconfigure</artifactId>
+    </dependency>
+
+    <!-- ── Spring Context — for @Configuration, @Bean ── -->
+    <dependency>
+      <groupId>org.springframework</groupId>
+      <artifactId>spring-context</artifactId>
+    </dependency>
+
+    <!-- ── Bean Validation API — for @Validated, @NotBlank ── -->
+    <dependency>
+      <groupId>jakarta.validation</groupId>
+      <artifactId>jakarta.validation-api</artifactId>
+    </dependency>
+
+    <!-- ── PostgreSQL JDBC driver (runtime only) ── -->
+    <dependency>
+      <groupId>org.postgresql</groupId>
+      <artifactId>postgresql</artifactId>
+      <scope>runtime</scope>
+    </dependency>
+
+    <!-- ── Test ── -->
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.assertj</groupId>
+      <artifactId>assertj-core</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-test</artifactId>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
+
+  <!-- ================================================================== -->
+  <!-- Build Configuration                                                -->
+  <!-- ================================================================== -->
+  <build>
+    <plugins>
+      <!-- ============================================================ -->
+      <!-- Flyway Maven Plugin (US-01-10)                               -->
+      <!--                                                              -->
+      <!-- WHY: Replaces npm scripts from the TypeScript story.         -->
+      <!-- Provides CLI-equivalent commands:                            -->
+      <!--   mvn flyway:migrate  — run pending migrations               -->
+      <!--   mvn flyway:info     — show migration status                -->
+      <!--   mvn flyway:clean    — reset database (dev only!)           -->
+      <!--   mvn flyway:validate — validate applied migrations          -->
+      <!--   mvn flyway:repair   — fix failed migration metadata        -->
+      <!--                                                              -->
+      <!-- Usage with specific database:                                -->
+      <!--   mvn flyway:migrate -Dflyway.url=jdbc:...                   -->
+      <!--   mvn flyway:migrate -Pflyway-rfq                           -->
+      <!-- ============================================================ -->
+      <plugin>
+        <groupId>org.flywaydb</groupId>
+        <artifactId>flyway-maven-plugin</artifactId>
+        <version>${flyway.version}</version>
+        <configuration>
+          <!-- Default: main Orion database -->
+          <url>jdbc:postgresql://localhost:5432/orion</url>
+          <user>orion</user>
+          <password>orion_dev_password</password>
+          <locations>
+            <location>classpath:db/migration/orion</location>
+          </locations>
+          <cleanDisabled>false</cleanDisabled>
+        </configuration>
+        <dependencies>
+          <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-database-postgresql</artifactId>
+            <version>${flyway.version}</version>
+          </dependency>
+          <dependency>
+            <groupId>org.postgresql</groupId>
+            <artifactId>postgresql</artifactId>
+            <version>42.7.5</version>
+          </dependency>
+        </dependencies>
+      </plugin>
+    </plugins>
+  </build>
+
+  <!-- ================================================================== -->
+  <!-- Profiles — per-database Flyway targets                             -->
+  <!-- ================================================================== -->
+  <profiles>
+    <!-- RFQ database: mvn flyway:migrate -Pflyway-rfq -->
+    <profile>
+      <id>flyway-rfq</id>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-maven-plugin</artifactId>
+            <configuration>
+              <url>jdbc:postgresql://localhost:5432/orion_rfq</url>
+              <user>orion</user>
+              <password>orion_dev_password</password>
+              <locations>
+                <location>classpath:db/migration/rfq</location>
+              </locations>
+            </configuration>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+
+    <!-- Market data database: mvn flyway:migrate -Pflyway-marketdata -->
+    <profile>
+      <id>flyway-marketdata</id>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-maven-plugin</artifactId>
+            <configuration>
+              <url>jdbc:postgresql://localhost:5432/orion_marketdata</url>
+              <user>orion</user>
+              <password>orion_dev_password</password>
+              <locations>
+                <location>classpath:db/migration/marketdata</location>
+              </locations>
+            </configuration>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+
+    <!-- Seed data profile: mvn flyway:migrate -Pflyway-seed -->
+    <profile>
+      <id>flyway-seed</id>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-maven-plugin</artifactId>
+            <configuration>
+              <locations>
+                <location>classpath:db/migration/orion</location>
+                <location>classpath:db/seed/development</location>
+                <location>classpath:db/seed/reference</location>
+              </locations>
+            </configuration>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+  </profiles>
+</project>

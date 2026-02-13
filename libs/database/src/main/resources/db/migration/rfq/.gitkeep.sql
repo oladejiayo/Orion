@@ -1,0 +1,2 @@
+-- Placeholder: RFQ service migrations will be added by US-07-01.
+-- This file ensures the directory exists in version control.

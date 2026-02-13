@@ -802,6 +802,96 @@ flowchart LR
 
 ---
 
+### ✅ US-01-10: Setup Database Migration Framework
+
+**📅 Implemented:** 2025-07-13
+**📁 Location:** `libs/database/`
+
+#### What Did We Build?
+
+We created a **database migration system** — an organized way to create, update, and track changes to all of Orion's databases. Think of it like a **version history for your database tables**, just like Git keeps a version history of your code.
+
+#### Why Do We Need This?
+
+Imagine you have a filing cabinet (the database). Over time, you need to add new drawers, relabel folders, and reorganize sections. Without a migration system:
+
+- Someone adds a drawer on the development cabinet but forgets to add it to the production cabinet 😱
+- Two people try to reorganize the same drawer at the same time and it becomes a mess
+- Nobody knows what the cabinet looked like 3 months ago
+
+The migration framework is like keeping a **numbered, dated logbook** of every change to the filing cabinet. Change #1: "Added drawer for tenants." Change #2: "Added automatic date stamps." Every environment applies the same changes in the same order — no drift, no surprises.
+
+#### The Parts We Created
+
+| File / Folder | What It Is | Simple Explanation |
+|---|---|---|
+| `libs/database/pom.xml` | Build file | Lists all the database tools (Flyway, PostgreSQL driver) the module needs |
+| `FlywayConfigProperties.java` | Settings holder | Reads database URLs and credentials from YAML config, validated at startup |
+| `FlywayMultiDatabaseConfig.java` | Multi-DB wiring | Creates separate Flyway instances for each database (orion, rfq, marketdata) |
+| `MigrationService.java` | Status checker | Reports which migrations have been applied and which are pending |
+| `V1__initial_schema.sql` | First migration | Creates 7 tables: tenants, users, roles, entitlements, outbox, processed events, audit log |
+| `V2__initial_triggers.sql` | Auto-timestamps | Adds triggers that automatically update the `updated_at` column when a row changes |
+| `V1000__seed_tenants.sql` | Dev seed data | Pre-fills 4 fake companies for development testing |
+| `V1001__seed_users.sql` | Dev seed data | Pre-fills 6 fake users with roles and permissions |
+| `R__reference_instruments.sql` | Reference data | 10 trading instruments (EUR/USD, US10Y, etc.) used across all environments |
+| `R__reference_venues.sql` | Reference data | 8 trading venues (Reuters, Bloomberg, etc.) used across all environments |
+| `application-flyway.yml` | Config profile | Default Flyway settings for all three databases |
+
+#### How It Works (The Flow)
+
+```mermaid
+flowchart TD
+    A["🚀 Spring Boot starts"] --> B["⚙️ FlywayMultiDatabaseConfig\n<i>Reads orion.flyway.* settings</i>"]
+    B --> C{"Which databases\nare enabled?"}
+    C -->|"orion ✅"| D["🗄️ orionFlyway bean\n<i>Connect to orion DB</i>"]
+    C -->|"rfq ✅"| E["🗄️ rfqFlyway bean\n<i>Connect to orion_rfq DB</i>"]
+    C -->|"marketdata ✅"| F["🗄️ marketdataFlyway bean\n<i>Connect to orion_marketdata DB</i>"]
+    D --> G["📋 Scan classpath\ndb/migration/orion/"]
+    E --> H["📋 Scan classpath\ndb/migration/rfq/"]
+    F --> I["📋 Scan classpath\ndb/migration/marketdata/"]
+    G --> J["✅ Apply V1, V2...\nin order"]
+    H --> K["✅ Apply migrations\nin order"]
+    I --> L["✅ Apply migrations\nin order"]
+
+    style A fill:#e3f2fd,stroke:#1976d2,color:#0d47a1
+    style D fill:#e8f5e9,stroke:#388e3c,color:#1b5e20
+    style E fill:#e8f5e9,stroke:#388e3c,color:#1b5e20
+    style F fill:#e8f5e9,stroke:#388e3c,color:#1b5e20
+    style J fill:#fff3e0,stroke:#e65100,color:#bf360c
+    style K fill:#fff3e0,stroke:#e65100,color:#bf360c
+    style L fill:#fff3e0,stroke:#e65100,color:#bf360c
+```
+
+#### Developer Commands
+
+```mermaid
+flowchart LR
+    A["🔍 Check status\nmvn flyway:info"] --> B["⬆️ Apply migrations\nmvn flyway:migrate"]
+    B --> C["🌱 Load seed data\nmvn flyway:migrate -Pflyway-seed"]
+    C --> D["🗑️ Reset DB (dev only)\nmvn flyway:clean"]
+
+    style A fill:#e3f2fd,stroke:#1976d2,color:#0d47a1
+    style B fill:#e8f5e9,stroke:#388e3c,color:#1b5e20
+    style C fill:#fff3e0,stroke:#e65100,color:#bf360c
+    style D fill:#ffebee,stroke:#c62828,color:#b71c1c
+```
+
+#### Key Concepts
+
+| Concept | Simple Explanation |
+|---------|-------------------|
+| **Flyway** | A database migration tool. It reads numbered SQL files and runs them in order on your database. Like a recipe book — follow the steps in sequence to build the database. |
+| **Versioned migration (`V1__`)** | A SQL file that runs exactly once. The `V1` prefix means "version 1." Once applied, Flyway records it and never runs it again. Like a one-time setup step. |
+| **Repeatable migration (`R__`)** | A SQL file that re-runs whenever its content changes. Good for reference data that might be updated. Like a "refresh this data" instruction. |
+| **Seed data** | Fake but realistic data loaded into development databases. Real production databases don't get seed data — it's just for testing. Like demo furniture in a model home. |
+| **Multi-database config** | Each Orion microservice can own its own database. The migration framework manages all of them independently, applying only the relevant migrations to each. |
+| **`@ConditionalOnProperty`** | A Spring annotation that says "only create this bean IF this setting is true." Each database's Flyway bean only exists if `orion.flyway.{db}.enabled=true`. |
+| **Transactional outbox** | The `outbox_events` table stores events that need to be published. Instead of sending an event directly (which could fail), we write it to the database (which is reliable) and a separate process sends it. |
+| **Idempotent consumer** | The `processed_events` table tracks which events we've already handled. If the same event arrives twice, we skip it. Like checking off items on a list — once checked, it stays checked. |
+| **H2 in-memory database** | A lightweight database that exists only in RAM. Used for unit tests so we don't need a real PostgreSQL server. Disappears when the test ends. |
+
+---
+
 ## 📖 Glossary
 
 *(see updated glossary below)*
@@ -812,9 +902,9 @@ flowchart LR
 
 | Story | What It Will Add |
 |---|---|
-| US-01-10 | Database migrations — Flyway/Liquibase for schema versioning |
-| US-01-11 | Testing infrastructure — Testcontainers for integration tests |
+| US-01-11 | Development documentation — comprehensive guides for developer onboarding |
+| US-01-12 | Environment configuration — profile-based config for all deployment targets |
 
 ---
 
-*Last updated after US-01-09*
+*Last updated after US-01-10*

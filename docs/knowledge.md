@@ -625,3 +625,109 @@ The correlation ID is either extracted from `X-Correlation-ID` header (HTTP) or 
 8. **20 structural verification tests** — `BaseServiceTemplateTest` ensures the template's files, packages, and POM dependencies stay intact. If someone accidentally deletes a file, the verification module catches it.
 9. **Clean Architecture enforcement by convention** — The package layout (`api → domain ← infrastructure`) is documented in `package-info.java` files. ArchUnit tests can enforce dependency rules in a future story.
 10. **CORS for localhost only** — `WebConfig` allows `localhost:3000` and `localhost:5173` (React dev servers). Production CORS is configured via environment-specific profiles or API gateway.
+
+## US-01-10: Setup Database Migration Framework
+
+### Business Context
+
+Every Orion microservice that persists data needs a reliable, version-controlled way to evolve database schemas. Without a migration framework, schema changes would be applied manually — leading to drift between environments, lost changes, and broken deployments.
+
+The **database migration framework** provides:
+
+- **Versioned SQL migrations** that are tracked and applied automatically
+- **Multi-database support** for service-specific databases (orion, orion_rfq, orion_marketdata)
+- **Seed data** for development and reference data for all environments
+- **CI integration** via Maven — migrations are validated on every build
+
+### Reinterpretation of US-01-10
+
+The original story was written for node-pg-migrate / Prisma Migrate (TypeScript). We reinterpret every component for Java 21 / Spring Boot 3.x:
+
+| Original (TypeScript/node-pg-migrate) | Reinterpreted (Java 21/Flyway) |
+|---|---|
+| `node-pg-migrate` CLI tool | **Flyway 10.x** (Spring Boot auto-configured) |
+| `config.js` per-database URLs | **`@ConfigurationProperties` record** (`FlywayConfigProperties`) |
+| `npm run db:migrate` | **`mvn flyway:migrate -pl libs/database`** |
+| `npm run db:migrate:down` | **`mvn flyway:clean -pl libs/database`** (dev only) |
+| `npm run db:migrate:create <name>` | **Manual `V{n}__{name}.sql`** file creation |
+| `npm run db:migrate:status` | **`mvn flyway:info -pl libs/database`** |
+| `npm run db:seed` | **`mvn flyway:migrate -Pflyway-seed`** (high-version migrations) |
+| Sequential `001_` numbering | **Flyway `V{n}__` versioned naming** |
+| Per-service migration directories | **Per-module classpath locations** (`db/migration/{db}/`) |
+| `config.js` multi-database object | **`FlywayMultiDatabaseConfig`** Spring `@Configuration` |
+
+### Architecture — `libs/database` Module
+
+The migration framework lives in a shared library module (`libs/database`) that services depend on:
+
+```
+libs/database/
+├── pom.xml                                      # Flyway deps + Maven plugin
+└── src/
+    ├── main/
+    │   ├── java/com/orion/database/migration/
+    │   │   ├── FlywayConfigProperties.java      # @ConfigurationProperties record
+    │   │   ├── FlywayMultiDatabaseConfig.java   # Multi-DB @Configuration
+    │   │   └── MigrationService.java            # Status/utility service
+    │   └── resources/
+    │       ├── application-flyway.yml            # Flyway config profile
+    │       └── db/
+    │           ├── migration/
+    │           │   ├── orion/                    # V1__initial_schema.sql, V2__triggers.sql
+    │           │   ├── rfq/                      # Placeholder (US-07-01)
+    │           │   └── marketdata/               # Placeholder (US-06-01)
+    │           └── seed/
+    │               ├── development/              # V1000__seed_tenants, V1001__seed_users
+    │               └── reference/                # R__reference_instruments, R__reference_venues
+```
+
+### Multi-Database Strategy
+
+Each Orion microservice can have its own database. Flyway is configured per-database with separate beans:
+
+| Database | Bean Name | Enabled By | Migration Location |
+|---|---|---|---|
+| `orion` (main) | `orionFlyway` | `orion.flyway.orion.enabled=true` | `classpath:db/migration/orion` |
+| `orion_rfq` | `rfqFlyway` | `orion.flyway.rfq.enabled=true` | `classpath:db/migration/rfq` |
+| `orion_marketdata` | `marketdataFlyway` | `orion.flyway.marketdata.enabled=true` | `classpath:db/migration/marketdata` |
+
+Spring Boot's default `FlywayAutoConfiguration` is **disabled** — we manage Flyway beans ourselves via `@ConditionalOnProperty`.
+
+### Initial Schema (V1 + V2)
+
+The initial migration creates 7 foundational tables:
+
+| Table | Purpose | Key Feature |
+|---|---|---|
+| `tenants` | Multi-tenant organizations | JSONB `settings` for per-tenant config |
+| `users` | User accounts | Tenant-scoped uniqueness (email, username) |
+| `user_roles` | RBAC role assignments | CASCADE delete with user |
+| `user_entitlements` | Trading permissions | PostgreSQL arrays for flexible asset/venue lists |
+| `outbox_events` | Transactional outbox | Partial index on unpublished events |
+| `processed_events` | Idempotent consumers | Unique (tenant, consumer_group, event_id) |
+| `audit_log` | Append-only audit trail | INET type for IP address |
+
+V2 adds the `update_updated_at()` trigger function applied to tenants, users, and user_entitlements.
+
+### Seed Data Strategy
+
+| Type | Flyway Pattern | Applied When |
+|---|---|---|
+| Development seed | `V1000+__seed_*.sql` (high version) | `-Pflyway-seed` profile only |
+| Reference data | `R__reference_*.sql` (repeatable) | Re-runs on checksum change |
+
+Development seed data includes 4 tenants, 6 users, roles, and entitlements with realistic trading parameters.
+Reference data includes 10 instruments (FX, Rates, Credit) and 8 trading venues.
+
+### Key Decisions
+
+1. **Flyway over Liquibase** — Flyway uses plain SQL files (matching the story's `.sql` migrations), has simpler config, and is the Spring Boot default.
+2. **Shared `libs/database` module** — Centralized migrations on the classpath. Services depend on this JAR and Flyway auto-discovers migration files.
+3. **`@ConfigurationProperties` record** — Type-safe, immutable config with Bean Validation. Replaces the TypeScript `config.js`.
+4. **`@ConditionalOnProperty` per database** — Services only run migrations for their own database. RFQ service enables `rfq`, market data enables `marketdata`.
+5. **H2 for unit tests** — Service-template tests use H2 in-memory instead of PostgreSQL. Integration tests (US-01-11) will use Testcontainers.
+6. **JPA enabled in service-template** — `spring-boot-starter-data-jpa` + PostgreSQL driver now active (was commented out). `ddl-auto=validate` ensures Hibernate checks schema matches entities.
+7. **Flyway Maven plugin** — Provides CLI-equivalent commands (`mvn flyway:migrate`, `flyway:info`, `flyway:clean`) for developer workflows.
+8. **Maven profiles for multi-DB** — `-Pflyway-rfq`, `-Pflyway-marketdata`, `-Pflyway-seed` switch the plugin's target database.
+9. **30 structural verification tests** — `DatabaseMigrationFrameworkTest` verifies directory structure, file naming, table definitions, and seed data presence.
+10. **Docker Compose compatibility** — The `01-init-databases.sql` script (from US-01-02) already creates the per-service databases. Flyway runs inside the application, not as a Docker init script.

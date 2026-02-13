@@ -70,15 +70,24 @@
     </dependency>
 
     <!-- ── Future: Database (uncomment when adding JPA/data layer) ── -->
-    <!-- <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-data-jpa</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.postgresql</groupId>
-            <artifactId>postgresql</artifactId>
-            <scope>runtime</scope>
-        </dependency> -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-data-jpa</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.postgresql</groupId>
+      <artifactId>postgresql</artifactId>
+      <scope>runtime</scope>
+    </dependency>
+
+    <!-- ── Database Migrations (US-01-10) ── -->
+    <!-- WHY: Provides Flyway migration SQL files on the classpath and          -->
+    <!-- multi-database configuration. When the service starts with the         -->
+    <!-- 'flyway' Spring profile, Flyway auto-discovers and runs migrations.    -->
+    <dependency>
+      <groupId>com.orion</groupId>
+      <artifactId>orion-database</artifactId>
+    </dependency>
 
     <!-- ── Future: Kafka (uncomment when adding event bus) ── -->
     <!-- <dependency>
@@ -90,6 +99,14 @@
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-test</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <!-- ── H2 in-memory database for tests (US-01-10) ── -->
+    <!-- WHY: Unit tests must not depend on external PostgreSQL.     -->
+    <!-- H2 provides a fast in-memory SQL engine for Spring Boot tests. -->
+    <dependency>
+      <groupId>com.h2database</groupId>
+      <artifactId>h2</artifactId>
       <scope>test</scope>
     </dependency>
   </dependencies>

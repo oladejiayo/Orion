@@ -1,0 +1,2 @@
+-- Placeholder: Market data service migrations will be added by US-06-01.
+-- This file ensures the directory exists in version control.

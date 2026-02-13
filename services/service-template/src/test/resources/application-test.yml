@@ -2,7 +2,31 @@
 # Test Configuration — no external infrastructure needed
 # ============================================================================
 
+spring:
+  # ── H2 in-memory database for tests (US-01-10) ──
+  # WHY: Unit tests must not depend on external PostgreSQL.
+  # H2 provides an in-memory SQL database that starts and stops with the JVM.
+  datasource:
+    url: jdbc:h2:mem:orion_test;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=false
+    username: sa
+    password:
+    driver-class-name: org.h2.Driver
+  jpa:
+    hibernate:
+      ddl-auto: none
+    database-platform: org.hibernate.dialect.H2Dialect
+  flyway:
+    enabled: false
+
+# Disable Orion multi-database Flyway in tests
 orion:
+  flyway:
+    orion:
+      url: jdbc:h2:mem:orion_test
+      username: sa
+      password:
+      locations: classpath:db/migration/orion
+      enabled: false
   service:
     name: service-template-test
     environment: test

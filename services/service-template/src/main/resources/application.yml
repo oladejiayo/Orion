@@ -9,6 +9,24 @@ spring:
   application:
     name: ${orion.service.name:service-template}
 
+  # ── Database (US-01-10) ──────────────────────────────────────────────
+  # WHY: JPA requires a datasource. These are safe defaults for local dev.
+  # Override with profile-specific YAML (local, docker) or env variables.
+  datasource:
+    url: ${ORION_DB_URL:jdbc:postgresql://localhost:5432/orion}
+    username: ${ORION_DB_USER:orion}
+    password: ${ORION_DB_PASSWORD:orion_dev_password}
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+
+  # Disable Spring Boot's default Flyway auto-config.
+  # We use FlywayMultiDatabaseConfig from orion-database instead.
+  flyway:
+    enabled: false
+
   # Graceful shutdown — let in-flight requests finish before stopping.
   # WHY: Prevents 502s during rolling deployments (Kubernetes sends SIGTERM,
   # service finishes current requests within timeout, then exits cleanly).

@@ -1,0 +1,47 @@
+# =============================================================================
+# Orion Database — Flyway Configuration
+# =============================================================================
+# WHY: This configuration profile provides Flyway settings for the database
+# module. Services that depend on orion-database activate this profile to
+# enable multi-database migrations.
+#
+# Reinterpretation: Replaces config.js from the TypeScript story.
+# Each database has its own URL, credentials, migration directory, and
+# enabled flag — matching the original per-database config structure.
+# =============================================================================
+
+orion:
+  flyway:
+    # ── Main Orion Database ──────────────────────────────────────────────
+    # Contains: tenants, users, user_roles, user_entitlements, outbox_events,
+    #           processed_events, audit_log
+    orion:
+      url: ${ORION_DB_URL:jdbc:postgresql://localhost:5432/orion}
+      username: ${ORION_DB_USER:orion}
+      password: ${ORION_DB_PASSWORD:orion_dev_password}
+      locations: classpath:db/migration/orion
+      enabled: true
+
+    # ── RFQ Service Database ─────────────────────────────────────────────
+    # Contains: RFQ-specific tables (added by US-07-01)
+    rfq:
+      url: ${RFQ_DB_URL:jdbc:postgresql://localhost:5432/orion_rfq}
+      username: ${RFQ_DB_USER:orion}
+      password: ${RFQ_DB_PASSWORD:orion_dev_password}
+      locations: classpath:db/migration/rfq
+      enabled: false
+
+    # ── Market Data Service Database ─────────────────────────────────────
+    # Contains: Market data tables (added by US-06-01)
+    marketdata:
+      url: ${MARKETDATA_DB_URL:jdbc:postgresql://localhost:5432/orion_marketdata}
+      username: ${MARKETDATA_DB_USER:orion}
+      password: ${MARKETDATA_DB_PASSWORD:orion_dev_password}
+      locations: classpath:db/migration/marketdata
+      enabled: false
+
+# Disable Spring Boot's default Flyway auto-configuration.
+# We manage Flyway beans ourselves via FlywayMultiDatabaseConfig.
+spring:
+  flyway:
+    enabled: false

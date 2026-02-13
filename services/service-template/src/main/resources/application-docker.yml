@@ -9,15 +9,25 @@
 server:
   port: 8080
 
-# --- Future: Database (uncomment when implementing data layer — US-01-10) ---
-# spring:
-#   datasource:
-#     url: jdbc:postgresql://postgres:5432/orion
-#     username: orion
-#     password: ${DB_PASSWORD}
-#   jpa:
-#     hibernate:
-#       ddl-auto: validate
+# --- Database (US-01-10): PostgreSQL via Docker network ---
+spring:
+  datasource:
+    url: jdbc:postgresql://postgres:5432/orion
+    username: orion
+    password: ${DB_PASSWORD:orion_dev_password}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+
+# --- Flyway multi-database (US-01-10) ---
+orion:
+  flyway:
+    orion:
+      url: jdbc:postgresql://postgres:5432/orion
+      username: orion
+      password: ${DB_PASSWORD:orion_dev_password}
+      locations: classpath:db/migration/orion
+      enabled: true
 
 # --- Future: Kafka (uncomment when implementing event bus — US-05-xx) ---
 # spring:

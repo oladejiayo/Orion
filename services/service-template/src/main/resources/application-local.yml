@@ -6,17 +6,27 @@
 # Activate: java -jar app.jar --spring.profiles.active=local
 # ============================================================================
 
-# --- Future: Database (uncomment when implementing data layer — US-01-10) ---
-# spring:
-#   datasource:
-#     url: jdbc:postgresql://localhost:5432/orion
-#     username: orion
-#     password: orion_dev_password
-#     driver-class-name: org.postgresql.Driver
-#   jpa:
-#     hibernate:
-#       ddl-auto: validate
-#     show-sql: true
+# --- Database (US-01-10): Local PostgreSQL via docker-compose ---
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/orion
+    username: orion
+    password: orion_dev_password
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: true
+
+# --- Flyway multi-database (US-01-10) ---
+orion:
+  flyway:
+    orion:
+      url: jdbc:postgresql://localhost:5432/orion
+      username: orion
+      password: orion_dev_password
+      locations: classpath:db/migration/orion
+      enabled: true
 
 # --- Future: Kafka (uncomment when implementing event bus — US-05-xx) ---
 # spring:
