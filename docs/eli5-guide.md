@@ -892,6 +892,78 @@ flowchart LR
 
 ---
 
+## 🏷️ Asset Classes — Explained Like You're 5
+
+Orion trades different *kinds* of things. We call each kind an **Asset Class**. Think of a big toy shop with five different aisles — each aisle has a totally different type of toy.
+
+### 💱 FX (Foreign Exchange)
+
+**What is it?** Swapping one country's money for another country's money.
+
+Imagine you're going on holiday to France. You walk up to a counter at the airport and give them your **dollars** 🇺🇸, and they give you back **euros** 🇪🇺. That's FX!
+
+In Orion, banks do this with *huge* amounts — billions of dollars — and they need prices in **milliseconds**. Our instruments like **EUR/USD** (euros for dollars) and **GBP/USD** (pounds for dollars) live here.
+
+> 🧒 **ELI5:** *You give me 1 red crayon, I give you 1.1 blue crayons. That "exchange rate" is what FX traders watch all day.*
+
+---
+
+### 📈 Rates (Interest Rates)
+
+**What is it?** Lending money and getting paid for it — specifically, trading on *how much* that payment will be.
+
+When a government or company borrows money, they promise to pay you back **plus a little extra** — that extra is the *interest rate*. A "10-year US Treasury bond" (**US10Y**) means the US government borrowed money and will pay it back in 10 years.
+
+Rates traders bet on whether those interest rates will go **up** or **down**. If rates go up, existing bonds become less valuable (and vice versa).
+
+> 🧒 **ELI5:** *You lend your friend $10 and they promise to give you $11 back next week. The $1 extra is the "rate." Rates traders guess whether that $1 will become $2 or 50¢.*
+
+---
+
+### 🏦 Credit
+
+**What is it?** Betting on whether a company (or country) will be able to pay back its debts.
+
+Credit is like a **trust score**. If a company looks risky (maybe it's losing money), credit traders can buy "insurance" against that company failing. This insurance is called a **Credit Default Swap (CDS)**. Our instruments like **ITRAXX-MAIN** and **CDX-IG** are bundles of these — they track the creditworthiness of many companies at once.
+
+> 🧒 **ELI5:** *Your friend wants to borrow your favorite toy. You're not sure they'll return it, so you pay another friend 1 candy bar to promise: "If they break it, I'll buy you a new one." That promise is credit trading.*
+
+---
+
+### 📊 Equities
+
+**What is it?** Owning a tiny piece of a company — a **share** of stock.
+
+When you buy a share of Apple, you literally own a small slice of Apple Inc. If Apple does well, your slice becomes worth more. If Apple does badly, it's worth less. Equities are what most people think of when they hear "stock market."
+
+> 🧒 **ELI5:** *You and 3 friends buy a lemonade stand together. Each of you owns one quarter. If the stand makes lots of money, your quarter is worth more. That quarter is your "equity."*
+
+---
+
+### 🛢️ Commodities
+
+**What is it?** Trading raw physical stuff — gold, oil, wheat, copper, natural gas.
+
+Commodities are the **real things** the world runs on. A farmer grows wheat and wants to lock in a price before harvest. An airline wants to lock in the price of jet fuel. Commodity traders connect these buyers and sellers.
+
+> 🧒 **ELI5:** *Imagine trading Pokémon cards, but instead of cards it's barrels of oil and bags of gold. You agree on a price today for something that gets delivered later.*
+
+---
+
+### How It Fits in Orion
+
+In our codebase, the `AssetClass` enum lives in [types.proto](libs/grpc-api/src/main/proto/v1/common/types.proto#L92-L100) and is used everywhere — from deciding which **pricing engine** handles a quote, to checking if a user is **entitled** to trade a particular asset class, to routing RFQs to the right **execution venue**.
+
+| Asset Class | Enum Value | Example Instruments | Who Trades It |
+|---|---|---|---|
+| **FX** | `ASSET_CLASS_FX` | EUR/USD, GBP/USD, USD/JPY | Banks, hedge funds, corporates |
+| **Rates** | `ASSET_CLASS_RATES` | US10Y, DE10Y, UK10Y | Bond desks, pension funds |
+| **Credit** | `ASSET_CLASS_CREDIT` | ITRAXX-MAIN, CDX-IG | Credit desks, insurers |
+| **Equities** | `ASSET_CLASS_EQUITIES` | *(future)* | Equity desks, retail brokers |
+| **Commodities** | `ASSET_CLASS_COMMODITIES` | *(future)* | Energy desks, commodity houses |
+
+---
+
 ## 📖 Glossary
 
 *(see updated glossary below)*
