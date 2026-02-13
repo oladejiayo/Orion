@@ -712,6 +712,96 @@ flowchart TD
 
 ---
 
+### ✅ US-01-09: Create Base Service Template
+
+**📅 Implemented:** 2025-07-13
+**📁 Location:** `services/service-template/`
+
+#### What Did We Build?
+
+We created a **ready-to-copy Spring Boot service** — a fully working microservice that demonstrates all the patterns every Orion service needs. Think of it as a **model home** in a new housing development: you walk through it, see how everything is arranged, then copy it and customize it for your needs.
+
+#### Why Do We Need This?
+
+Imagine 10 different teams building 10 different services. Without a template, each team would:
+
+- Set up health checks differently (or forget them)
+- Handle errors in their own incompatible way
+- Configure logging with inconsistent formats
+- Miss correlation IDs (making debugging a nightmare)
+
+The service template is the **"golden path"** — it says: "This is how we build services at Orion. Copy this, customize it, and you'll have all the essentials already wired up."
+
+#### The Parts We Created
+
+| File / Class | What It Is | Simple Explanation |
+|---|---|---|
+| `ServiceTemplateApplication.java` | Entry point | The "Start" button — runs the Spring Boot service |
+| `ServiceTemplateProperties.java` | Configuration | Service settings loaded from YAML, validated at startup (like a settings page) |
+| `CorrelationIdFilter.java` | Request tracker | Every HTTP request gets a tracking number (like a package tracking ID) |
+| `GlobalExceptionHandler.java` | Error handler | When something goes wrong, formats a helpful error message (not a scary stack trace) |
+| `GrpcCorrelationInterceptor.java` | gRPC tracker | Same tracking number system, but for service-to-service gRPC calls |
+| `GrpcExceptionInterceptor.java` | gRPC error mapper | Translates Java errors into gRPC error codes clients understand |
+| `ServiceInfoController.java` | Info endpoint | A simple `/api/v1/info` page that shows the service name and status |
+| `WebConfig.java` | CORS settings | Allows the React UI on localhost to talk to this service |
+| `application.yml` | Main config | The default settings file — port, health checks, logging format |
+| `application-local.yml` | Dev config | Settings for running on your laptop (localhost URLs) |
+| `application-docker.yml` | Docker config | Settings for running in Docker (container network names) |
+| `README.md` | Instructions | "How to copy this template and create a new service" |
+
+#### How It Works (The Flow)
+
+```mermaid
+flowchart TD
+    A["🌐 HTTP Request arrives\nwith X-Correlation-ID header"] --> B["🏷️ CorrelationIdFilter\n<i>Extract or generate tracking ID</i>"]
+    B --> C["📋 CorrelationContextHolder\n<i>Store in ThreadLocal + MDC</i>"]
+    C --> D["🎯 ServiceInfoController\n<i>Handle the request</i>"]
+    D --> E{"💥 Error?"}
+    E -->|"No"| F["✅ Return JSON response\n+ X-Correlation-ID header"]
+    E -->|"Yes"| G["🛡️ GlobalExceptionHandler\n<i>RFC 7807 ProblemDetail</i>"]
+    G --> F
+    F --> H["🧹 CorrelationIdFilter\n<i>Clean up ThreadLocal</i>"]
+
+    style A fill:#e3f2fd,stroke:#1976d2,color:#0d47a1
+    style B fill:#fff3e0,stroke:#e65100,color:#bf360c
+    style C fill:#f3e5f5,stroke:#7b1fa2,color:#4a148c
+    style D fill:#e8f5e9,stroke:#388e3c,color:#1b5e20
+    style F fill:#e8f5e9,stroke:#388e3c,color:#1b5e20
+    style G fill:#ffebee,stroke:#c62828,color:#b71c1c
+    style H fill:#fff3e0,stroke:#e65100,color:#bf360c
+```
+
+#### Creating a New Service (Copying the Template)
+
+```mermaid
+flowchart LR
+    A["📋 Copy service-template\nto services/my-service"] --> B["✏️ Rename packages\ncom.orion.myservice"]
+    B --> C["⚙️ Update pom.xml\norion-my-service"]
+    C --> D["📝 Update application.yml\norion.service.name: my-service"]
+    D --> E["📦 Add to parent POM\nmodules section"]
+    E --> F["🚀 Ready to develop!"]
+
+    style A fill:#e3f2fd,stroke:#1976d2,color:#0d47a1
+    style F fill:#e8f5e9,stroke:#388e3c,color:#1b5e20
+```
+
+#### Key Concepts
+
+| Concept | Simple Explanation |
+|---------|-------------------|
+| **Correlation ID** | A unique tracking number attached to every request. Like a FedEx tracking number — follow it through logs to trace what happened across multiple services. |
+| **`OncePerRequestFilter`** | A Spring filter that guarantees it runs exactly once per request. It sets up the correlation ID at the start and cleans it up at the end. |
+| **`@RestControllerAdvice`** | A Spring "catch-all" for errors. Instead of each controller handling its own errors, this one class catches ALL unhandled exceptions and formats them nicely. |
+| **RFC 7807 ProblemDetail** | An internet standard for error responses. Instead of random error formats, every error has: type, title, status, detail, and our custom correlationId and timestamp. |
+| **`@ConfigurationProperties`** | Spring reads YAML settings and puts them into a type-safe Java record. If a required setting is missing, the app won't start (fail-fast). |
+| **gRPC ServerInterceptor** | Like HTTP middleware but for gRPC calls. Our interceptors add correlation IDs and translate Java exceptions into gRPC-friendly error codes. |
+| **Clean Architecture** | Organizing code into layers: `api` (input) → `domain` (business logic) → `infrastructure` (output). The domain layer has NO framework imports — pure business logic. |
+| **Spring Profiles** | Different YAML files for different environments. `local` = your laptop, `docker` = Docker Compose, `test` = no external services needed. |
+| **Graceful Shutdown** | When the service receives a "stop" signal, it finishes processing current requests (up to 30 seconds) instead of cutting them off abruptly. |
+| **Actuator** | Spring Boot's built-in monitoring. `/actuator/health` tells Kubernetes if the service is alive. `/actuator/prometheus` exports metrics for dashboards. |
+
+---
+
 ## 📖 Glossary
 
 *(see updated glossary below)*
@@ -722,9 +812,9 @@ flowchart TD
 
 | Story | What It Will Add |
 |---|---|
-| US-01-09 | Base service template — Spring Boot archetype with shared config |
 | US-01-10 | Database migrations — Flyway/Liquibase for schema versioning |
+| US-01-11 | Testing infrastructure — Testcontainers for integration tests |
 
 ---
 
-*Last updated after US-01-08*
+*Last updated after US-01-09*

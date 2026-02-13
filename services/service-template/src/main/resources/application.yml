@@ -1,0 +1,62 @@
+# ============================================================================
+# Orion Service Template — Default Configuration
+#
+# This is the base configuration that all Orion services start from.
+# Override with application-local.yml (dev) or application-docker.yml (Docker).
+# ============================================================================
+
+spring:
+  application:
+    name: ${orion.service.name:service-template}
+
+  # Graceful shutdown — let in-flight requests finish before stopping.
+  # WHY: Prevents 502s during rolling deployments (Kubernetes sends SIGTERM,
+  # service finishes current requests within timeout, then exits cleanly).
+  lifecycle:
+    timeout-per-shutdown-phase: 30s
+
+server:
+  port: 8080
+  shutdown: graceful
+
+  # Structured error responses using RFC 7807 ProblemDetail
+  error:
+    include-message: always
+    include-binding-errors: always
+
+# --- Actuator & Observability ---
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,metrics
+  endpoint:
+    health:
+      show-details: when_authorized
+      # WHY: Kubernetes probes use /actuator/health/liveness and /readiness
+      probes:
+        enabled: true
+  # Prometheus metrics for /actuator/prometheus
+  prometheus:
+    metrics:
+      export:
+        enabled: true
+
+# --- Orion Service Properties ---
+orion:
+  service:
+    name: service-template
+    environment: development
+    description: Reference service template for Orion platform
+    grpc-port: 9090
+
+# --- Logging ---
+# WHY: The log pattern includes correlationId from MDC (set by CorrelationIdFilter).
+# This enables grep-based request tracing across all log lines.
+logging:
+  pattern:
+    console: "%d{ISO8601} [%thread] %-5level %logger{36} [%X{correlationId:-}] - %msg%n"
+  level:
+    root: INFO
+    com.orion: DEBUG
+    org.springframework.web: INFO

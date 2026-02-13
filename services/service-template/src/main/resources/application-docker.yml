@@ -1,0 +1,44 @@
+# ============================================================================
+# Docker Compose Overrides
+#
+# Used when running inside Docker (container-to-container networking).
+# Service names resolve via Docker DNS on the orion-network bridge.
+# Activate: SPRING_PROFILES_ACTIVE=docker (set in docker-compose.yml)
+# ============================================================================
+
+server:
+  port: 8080
+
+# --- Future: Database (uncomment when implementing data layer — US-01-10) ---
+# spring:
+#   datasource:
+#     url: jdbc:postgresql://postgres:5432/orion
+#     username: orion
+#     password: ${DB_PASSWORD}
+#   jpa:
+#     hibernate:
+#       ddl-auto: validate
+
+# --- Future: Kafka (uncomment when implementing event bus — US-05-xx) ---
+# spring:
+#   kafka:
+#     bootstrap-servers: redpanda:9092
+
+orion:
+  service:
+    name: service-template
+    environment: docker
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,metrics
+  endpoint:
+    health:
+      show-details: always
+
+logging:
+  level:
+    root: INFO
+    com.orion: INFO

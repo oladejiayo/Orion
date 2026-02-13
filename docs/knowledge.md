@@ -536,3 +536,92 @@ Build Lifecycle Quality Gates:
 8. **Maven Enforcer Plugin applied to ALL modules** — Runs in `validate` phase of every module build. Prevents Java 8 or Maven 3.6 from being used accidentally.
 9. **Checkstyle suppressions for generated code** — Proto/gRPC generated code in `target/generated-sources/` is excluded from all checks. Test code gets relaxed rules (method names, magic numbers).
 10. **`banDuplicatePomDependencyVersions` over `banDuplicateDependencies`** — Built-in enforcer rule in Maven 3.5+. Catches duplicate dependency declarations in POM which cause classloader conflicts.
+
+---
+
+## US-01-09: Create Base Service Template
+
+### Business Context
+
+Every Orion microservice (RFQ, execution, market-data, etc.) needs the same foundational infrastructure: HTTP endpoints, gRPC interceptors, health checks, correlation ID propagation, structured error handling, and externalized configuration. Without a reference template, each team would independently reinvent these patterns — inconsistently.
+
+The **service template** is a fully working Spring Boot module that developers copy when starting a new service. It's the "golden path" — the Orion-approved way to build a service.
+
+### Reinterpretation of US-01-09
+
+The original story was written for Express/KafkaJS/Zod/TypeScript. We reinterpret every component for Java 21 / Spring Boot 3.x:
+
+| Original (TypeScript/Express) | Reinterpreted (Java 21/Spring Boot) |
+|---|---|
+| Express HTTP server | **Spring Boot Web** (embedded Tomcat) |
+| `main.ts` entry point | **`@SpringBootApplication`** main class |
+| gRPC server initialization | **gRPC `ServerInterceptor`** classes (standalone, no starter yet) |
+| KafkaJS consumer/producer | **Spring Kafka** (commented out, ready for US-05-xx) |
+| Zod config validation | **`@ConfigurationProperties`** + **Bean Validation** (`@Validated`, `@NotBlank`) |
+| Express middleware (correlation) | **`OncePerRequestFilter`** + gRPC `ServerInterceptor` |
+| Express error middleware | **`@RestControllerAdvice`** with RFC 7807 `ProblemDetail` |
+| Health check endpoint | **Spring Boot Actuator** (`/actuator/health`, `/actuator/prometheus`) |
+| Graceful shutdown handler | **`server.shutdown=graceful`** (built into Spring Boot) |
+| Database connection pool | **Spring Data JPA + HikariCP** (commented out, ready for US-01-10) |
+| `.env` file config | **Spring profiles** (`application.yml`, `-local.yml`, `-docker.yml`) |
+
+### Clean Architecture Package Layout
+
+```
+com.orion.servicetemplate/
+├── api/                    # Inbound adapters (REST controllers)
+│   └── ServiceInfoController     → /api/v1/info endpoint
+├── config/                 # Cross-cutting configuration
+│   ├── ServiceTemplateProperties → @ConfigurationProperties record
+│   └── WebConfig                 → CORS configuration
+├── domain/                 # Business logic (no framework imports!)
+│   └── (entities, events, ports — added per service)
+├── infrastructure/         # Outbound adapters (framework glue)
+│   ├── web/
+│   │   ├── CorrelationIdFilter     → HTTP correlation ID propagation
+│   │   └── GlobalExceptionHandler  → RFC 7807 error mapping
+│   └── grpc/
+│       ├── GrpcCorrelationInterceptor → gRPC correlation ID
+│       └── GrpcExceptionInterceptor   → Exception → Status mapping
+└── ServiceTemplateApplication.java → @SpringBootApplication entry
+```
+
+### Correlation ID Flow
+
+```
+HTTP Request → CorrelationIdFilter → CorrelationContextHolder (ThreadLocal + MDC) → Response header
+gRPC Request → GrpcCorrelationInterceptor → CorrelationContextHolder → Cleanup on complete/cancel
+```
+
+The correlation ID is either extracted from `X-Correlation-ID` header (HTTP) or `x-correlation-id` metadata key (gRPC), or generated as a UUID if absent. It flows through `CorrelationContextHolder` (from `orion-observability` lib) which populates SLF4J MDC for log correlation.
+
+### gRPC Exception Mapping
+
+| Java Exception | gRPC Status Code | Meaning |
+|---|---|---|
+| `IllegalArgumentException` | `INVALID_ARGUMENT` | Client sent bad data |
+| `IllegalStateException` | `FAILED_PRECONDITION` | State prevents operation |
+| `StatusRuntimeException` | *(preserved)* | Already a gRPC status |
+| Any other exception | `INTERNAL` | Server-side bug |
+
+### Spring Profile Strategy
+
+| Profile | Activated By | Purpose |
+|---|---|---|
+| `default` | Always active | Base configuration, production-safe defaults |
+| `local` | `-Dspring.profiles.active=local` | localhost DB/Kafka URLs, DEBUG logging |
+| `docker` | `-Dspring.profiles.active=docker` | Container DNS names (postgres, redpanda) |
+| `test` | `@ActiveProfiles("test")` | No external infra, WARN logging, random ports |
+
+### Key Decisions
+
+1. **Module in reactor build** — `services/service-template` is a real Maven module, built and tested on every `mvn verify`. This ensures the template stays compilable as libs evolve.
+2. **`@ConfigurationProperties` record** — Java records with `@Validated` provide type-safe, immutable configuration with defaults in the compact constructor. No getters/setters needed.
+3. **gRPC interceptors without Spring starter** — Only `io.grpc:grpc-api` (interfaces) is included. The full gRPC server runtime (`grpc-server-spring-boot-starter`) is added per-service when gRPC endpoints are needed. This keeps the template lightweight.
+4. **RFC 7807 `ProblemDetail`** — Spring 6+ native error format. The `GlobalExceptionHandler` maps exceptions to structured JSON with `type`, `title`, `status`, `detail`, `timestamp`, and `correlationId`.
+5. **Commented-out JPA/Kafka blocks** — The POM and YAML files contain commented sections for database and Kafka configuration. Developers uncomment them when adding data or event capabilities. This reduces "what do I need to add?" friction.
+6. **`OncePerRequestFilter` for correlation** — Spring guarantees this filter runs exactly once per request (even with error dispatches). The `@Order(HIGHEST_PRECEDENCE)` ensures correlation is set before any other filter.
+7. **`spring-boot-maven-plugin` for bootable JAR** — Each service produces an executable JAR that can be run with `java -jar`. The Dockerfile.template (from US-01-05) expects this.
+8. **20 structural verification tests** — `BaseServiceTemplateTest` ensures the template's files, packages, and POM dependencies stay intact. If someone accidentally deletes a file, the verification module catches it.
+9. **Clean Architecture enforcement by convention** — The package layout (`api → domain ← infrastructure`) is documented in `package-info.java` files. ArchUnit tests can enforce dependency rules in a future story.
+10. **CORS for localhost only** — `WebConfig` allows `localhost:3000` and `localhost:5173` (React dev servers). Production CORS is configured via environment-specific profiles or API gateway.

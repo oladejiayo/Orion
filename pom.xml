@@ -42,6 +42,7 @@
     <module>libs/grpc-api</module>
 
     <!-- Microservices (depend on libs) -->
+    <module>services/service-template</module>
     <!-- <module>services/bff-workstation</module> -->
     <!-- <module>services/bff-admin</module> -->
     <!-- <module>services/marketdata-ingest</module> -->

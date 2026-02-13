@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0                              https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <!-- ================================================================== -->
+  <!-- Parent — inherits dependency management, plugin config, Java 21    -->
+  <!-- ================================================================== -->
+  <parent>
+    <groupId>com.orion</groupId>
+    <artifactId>orion-platform</artifactId>
+    <version>0.0.1-SNAPSHOT</version>
+    <relativePath>../../pom.xml</relativePath>
+  </parent>
+
+  <!-- ================================================================== -->
+  <!-- Module Coordinates                                                 -->
+  <!-- ================================================================== -->
+  <artifactId>orion-service-template</artifactId>
+  <name>Orion :: Services :: Service Template</name>
+  <description>Reference Spring Boot service demonstrating standard Orion patterns:
+        HTTP endpoints, gRPC interceptors, health checks, configuration properties,
+        correlation ID propagation, structured error handling, and observability.
+        Copy this module when creating a new microservice.</description>
+
+  <!-- ================================================================== -->
+  <!-- Dependencies                                                       -->
+  <!-- ================================================================== -->
+  <dependencies>
+    <!-- ── Spring Boot Starters ── -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-web</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-actuator</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-validation</artifactId>
+    </dependency>
+
+    <!-- ── Observability: Prometheus metrics for /actuator/prometheus ── -->
+    <dependency>
+      <groupId>io.micrometer</groupId>
+      <artifactId>micrometer-registry-prometheus</artifactId>
+    </dependency>
+
+    <!-- ── gRPC API (interceptor interfaces — no auto-config) ── -->
+    <!-- WHY: We include only grpc-api so interceptors compile without -->
+    <!-- pulling in the full gRPC server runtime. Services that need   -->
+    <!-- actual gRPC endpoints add grpc-server-spring-boot-starter.    -->
+    <dependency>
+      <groupId>io.grpc</groupId>
+      <artifactId>grpc-api</artifactId>
+    </dependency>
+
+    <!-- ── Orion shared libraries ── -->
+    <dependency>
+      <groupId>com.orion</groupId>
+      <artifactId>orion-event-model</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>com.orion</groupId>
+      <artifactId>orion-security</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>com.orion</groupId>
+      <artifactId>orion-observability</artifactId>
+    </dependency>
+
+    <!-- ── Future: Database (uncomment when adding JPA/data layer) ── -->
+    <!-- <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-jpa</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.postgresql</groupId>
+            <artifactId>postgresql</artifactId>
+            <scope>runtime</scope>
+        </dependency> -->
+
+    <!-- ── Future: Kafka (uncomment when adding event bus) ── -->
+    <!-- <dependency>
+            <groupId>org.springframework.kafka</groupId>
+            <artifactId>spring-kafka</artifactId>
+        </dependency> -->
+
+    <!-- ── Test ── -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-test</artifactId>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
+
+  <!-- ================================================================== -->
+  <!-- Build — Spring Boot packaging for executable JAR                   -->
+  <!-- ================================================================== -->
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-maven-plugin</artifactId>
+      </plugin>
+    </plugins>
+  </build>
+</project>

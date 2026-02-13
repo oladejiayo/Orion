@@ -1,0 +1,21 @@
+# ============================================================================
+# Test Configuration — no external infrastructure needed
+# ============================================================================
+
+orion:
+  service:
+    name: service-template-test
+    environment: test
+    description: Test configuration
+    grpc-port: 0
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+
+logging:
+  level:
+    root: WARN
+    com.orion: DEBUG

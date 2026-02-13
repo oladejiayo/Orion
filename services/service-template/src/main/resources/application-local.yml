@@ -1,0 +1,40 @@
+# ============================================================================
+# Local Development Overrides
+#
+# Used when running the service directly (outside Docker).
+# Connects to infrastructure services started by docker-compose.yml.
+# Activate: java -jar app.jar --spring.profiles.active=local
+# ============================================================================
+
+# --- Future: Database (uncomment when implementing data layer — US-01-10) ---
+# spring:
+#   datasource:
+#     url: jdbc:postgresql://localhost:5432/orion
+#     username: orion
+#     password: orion_dev_password
+#     driver-class-name: org.postgresql.Driver
+#   jpa:
+#     hibernate:
+#       ddl-auto: validate
+#     show-sql: true
+
+# --- Future: Kafka (uncomment when implementing event bus — US-05-xx) ---
+# spring:
+#   kafka:
+#     bootstrap-servers: localhost:19092
+#     consumer:
+#       group-id: ${spring.application.name}
+#       auto-offset-reset: earliest
+#     producer:
+#       key-serializer: org.apache.kafka.common.serialization.StringSerializer
+#       value-serializer: org.apache.kafka.common.serialization.StringSerializer
+
+orion:
+  service:
+    name: service-template
+    environment: local
+
+logging:
+  level:
+    com.orion: DEBUG
+    org.springframework.web: DEBUG
